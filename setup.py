@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 import codecs
 import os
 
-VERSION = "1.2"
+VERSION = "1.3"
 
 DESCRIPTION = "scintiPulses"
 

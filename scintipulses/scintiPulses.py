@@ -222,8 +222,7 @@ def scintiPulses(enerVec, timeFrame=1e-4,
             vi = np.random.normal(se_pulseCharge,pulseSpread,ne)
             v[i]+=sum(vi)
     
-    quantumIllumFCT=v
-    
+    quantumIllumFCT=sp.gaussian_filter1d(v,pulseWidth/timeStep)
     
     # Thermoionic noise
     if thermonionic:
@@ -235,8 +234,9 @@ def scintiPulses(enerVec, timeFrame=1e-4,
             flag = int(ti[0]/timeStep)
             vi = np.random.normal(se_pulseCharge,pulseSpread,1)
             v[flag]+=vi[0]
-    
+       
     v=sp.gaussian_filter1d(v,pulseWidth/timeStep)
+    quantumIllumFCTdark=v
     if thermalNoise: v=v+sigmathermalNoise*np.random.normal(0,1,n)
     if antiAliasing: v = low_pass_filter(v, timeStep, bandwidth)
     if quantiz: v = add_quantization_noise(v, coding_resolution_bits, full_scale_range)
@@ -245,33 +245,36 @@ def scintiPulses(enerVec, timeFrame=1e-4,
         for i in range(CRorder):
             v = cr_filter(v, tauAmp, timeStep)
     if quantiz: v = saturate(v, full_scale_range)
-    return t, v, IllumFCT, quantumIllumFCT, Y
+    return t, v, IllumFCT, quantumIllumFCT, quantumIllumFCTdark, Y
 
 
 
 # import tdcrpy as td
 # import matplotlib.pyplot as plt
 # enerVec = td.TDCR_model_lib.readRecQuenchedEnergies()[0]
-# t, v, IllumFCT, quantumIllumFCT, Y = scintiPulses(enerVec, timeFrame=1e-4,
+# t, v, IllumFCT, quantumIllumFCT, quantumIllumFCTdark, Y = scintiPulses(enerVec, timeFrame=1e-4,
 #                                   timeStep=5e-9, tau = 200e-9,
 #                                   tau2 = 2000e-9, pdelayed = 0,
 #                                   ICR = 1e6, L = 1, se_pulseCharge = 1,
 #                                   pulseSpread = 0.1, voltageBaseline = 0,
-#                                   pulseWidth = 1e-9,
+#                                   pulseWidth = 10e-9,
 #                                   thermalNoise=False, sigmathermalNoise = 0.01,
 #                                   antiAliasing = False, bandwidth = 2e8, 
 #                                   quantiz=False, coding_resolution_bits=14, full_scale_range=2,
 #                                   thermonionic=False, thermooinicPeriod = 1e-4,
 #                                   pream = False, tauPream = 10e-6,
 #                                   ampli = False, tauAmp = 2e-6, CRorder=1,
-#                                   returnPulse = False)
+#                                   returnPulse = True)
 
 
 # plt.figure("plot")
 # plt.clf()
 # plt.title("Illumination function")
+# plt.plot(t, quantumIllumFCT,"-k", label="quantum illumation function")
+# plt.plot(t, quantumIllumFCTdark,"-g", label="quantum illumation function + dark noise")
 # plt.plot(t, v,'-r', label="output signal")
-# plt.plot(t, quantumIllumFCT,"-k", label="illumation function")
+# plt.plot(t, IllumFCT,"-b", label="illumation function")
+
 # plt.xlim([0,5e-6])
 # plt.legend()
 # plt.xlabel(r"$t$ /s")
