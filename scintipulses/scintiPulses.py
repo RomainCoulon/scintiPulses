@@ -193,10 +193,12 @@ def scintiPulses(enerVec, timeFrame=1e-4,
     
     # Illumination function
     IllumFCT=np.zeros(len(t))
+    # IllumFCTcum=np.zeros(len(t))
     Y =np.zeros(len(t))
     for i, ti in enumerate(arrival_times):
         IllumFCT0 = (1-pdelayed)*(Nphe[i]/tau) * np.exp(-t/tau)+pdelayed*(Nphe[i]/tau2) * np.exp(-t/tau2) # Exponential law x the nb of PHE
         IllumFCT0 *= timeStep
+        # cumCharge = np.cumsum(IllumFCT0)
         if Nphe[i] > 0:
             if returnPulse:
                 IllumFCT=IllumFCT0
@@ -204,7 +206,12 @@ def scintiPulses(enerVec, timeFrame=1e-4,
             else:
                 flag = int(ti[0]/timeStep)
                 IllumFCT += np.concatenate((np.zeros(flag),IllumFCT0[:n-flag]))
+                # flag2 = int(tauPream/timeStep)
+                # if flag2>n: flag2=n
+                # IllumFCTcum += np.concatenate((np.zeros(flag),cumCharge[:n-flag]))
                 Y[flag] += Nphe[i]
+    
+    # collCharge = np.where(IllumFCT > 1e-3, 1, 0)
                 
     
     # Quantum illumination function
@@ -214,6 +221,9 @@ def scintiPulses(enerVec, timeFrame=1e-4,
         if ne>0:
             vi = np.random.normal(se_pulseCharge,pulseSpread,ne)
             v[i]+=sum(vi)
+    
+    quantumIllumFCT=v
+    
     
     # Thermoionic noise
     if thermonionic:
@@ -235,17 +245,17 @@ def scintiPulses(enerVec, timeFrame=1e-4,
         for i in range(CRorder):
             v = cr_filter(v, tauAmp, timeStep)
     if quantiz: v = saturate(v, full_scale_range)
-    return t, v, IllumFCT, Y
+    return t, v, IllumFCT, quantumIllumFCT, Y
 
 
 
 # import tdcrpy as td
 # import matplotlib.pyplot as plt
 # enerVec = td.TDCR_model_lib.readRecQuenchedEnergies()[0]
-# t, v, IllumFCT, Y = scintiPulses(enerVec, timeFrame=1e-4,
-#                                   timeStep=1e-9, tau = 100e-9,
+# t, v, IllumFCT, quantumIllumFCT, Y = scintiPulses(enerVec, timeFrame=1e-4,
+#                                   timeStep=5e-9, tau = 200e-9,
 #                                   tau2 = 2000e-9, pdelayed = 0,
-#                                   ICR = 1e5, L = 1, se_pulseCharge = 1,
+#                                   ICR = 1e6, L = 1, se_pulseCharge = 1,
 #                                   pulseSpread = 0.1, voltageBaseline = 0,
 #                                   pulseWidth = 1e-9,
 #                                   thermalNoise=False, sigmathermalNoise = 0.01,
@@ -255,12 +265,14 @@ def scintiPulses(enerVec, timeFrame=1e-4,
 #                                   pream = False, tauPream = 10e-6,
 #                                   ampli = False, tauAmp = 2e-6, CRorder=1,
 #                                   returnPulse = False)
+
+
 # plt.figure("plot")
 # plt.clf()
 # plt.title("Illumination function")
-# plt.plot(t, IllumFCT,'-r', label="output signal")
-# plt.plot(t, Y,"-k", label="illumation function")
-# # plt.xlim([0,1e-6])
+# plt.plot(t, v,'-r', label="output signal")
+# plt.plot(t, quantumIllumFCT,"-k", label="illumation function")
+# plt.xlim([0,5e-6])
 # plt.legend()
 # plt.xlabel(r"$t$ /s")
 # plt.ylabel(r"$v$ /V")
