@@ -195,17 +195,17 @@ def scintiPulses(enerVec, timeFrame=1e-4,
     IllumFCT=np.zeros(len(t))
     Y =np.zeros(len(t))
     for i, ti in enumerate(arrival_times):
-        Y[i] = Nphe[i]
         IllumFCT0 = (1-pdelayed)*(Nphe[i]/tau) * np.exp(-t/tau)+pdelayed*(Nphe[i]/tau2) * np.exp(-t/tau2) # Exponential law x the nb of PHE
         IllumFCT0 *= timeStep
         if Nphe[i] > 0:
-            # print(type(ti), type(timeStep))
             if returnPulse:
                 IllumFCT=IllumFCT0
                 break
             else:
                 flag = int(ti[0]/timeStep)
                 IllumFCT += np.concatenate((np.zeros(flag),IllumFCT0[:n-flag]))
+                Y[flag] += Nphe[i]
+                
     
     # Quantum illumination function
     v=voltageBaseline*np.ones(n)
@@ -237,16 +237,30 @@ def scintiPulses(enerVec, timeFrame=1e-4,
     if quantiz: v = saturate(v, full_scale_range)
     return t, v, IllumFCT, Y
 
-# scintiPulses(np.ones(100), timeFrame=1e-4,
-#                                  timeStep=1e-9, tau = 100e-9,
-#                                  tau2 = 2000e-9, pdelayed = 0,
-#                                  ICR = 1e5, L = 1, se_pulseCharge = 1,
-#                                  pulseSpread = 0.1, voltageBaseline = 0,
-#                                  pulseWidth = 1e-9,
-#                                  thermalNoise=False, sigmathermalNoise = 0.01,
-#                                  antiAliasing = False, bandwidth = 2e8, 
-#                                  quantiz=False, coding_resolution_bits=14, full_scale_range=2,
-#                                  thermonionic=False, thermooinicPeriod = 1e-4,
-#                                  pream = False, tauPream = 10e-6,
-#                                  ampli = False, tauAmp = 2e-6, CRorder=1,
-#                                  returnPulse = False)
+
+
+import tdcrpy as td
+import matplotlib.pyplot as plt
+enerVec = td.TDCR_model_lib.readRecQuenchedEnergies()[0]
+t, v, IllumFCT, Y = scintiPulses(enerVec, timeFrame=1e-4,
+                                  timeStep=1e-9, tau = 100e-9,
+                                  tau2 = 2000e-9, pdelayed = 0,
+                                  ICR = 1e5, L = 1, se_pulseCharge = 1,
+                                  pulseSpread = 0.1, voltageBaseline = 0,
+                                  pulseWidth = 1e-9,
+                                  thermalNoise=False, sigmathermalNoise = 0.01,
+                                  antiAliasing = False, bandwidth = 2e8, 
+                                  quantiz=False, coding_resolution_bits=14, full_scale_range=2,
+                                  thermonionic=False, thermooinicPeriod = 1e-4,
+                                  pream = False, tauPream = 10e-6,
+                                  ampli = False, tauAmp = 2e-6, CRorder=1,
+                                  returnPulse = False)
+plt.figure("plot")
+plt.clf()
+plt.title("Illumination function")
+plt.plot(t, IllumFCT,'-r', label="output signal")
+plt.plot(t, Y,"-k", label="illumation function")
+# plt.xlim([0,1e-6])
+plt.legend()
+plt.xlabel(r"$t$ /s")
+plt.ylabel(r"$v$ /V")
