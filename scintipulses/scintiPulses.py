@@ -169,6 +169,8 @@ def scintiPulses(enerVec, timeFrame=1e-4,
         simulated scintillation signal in V.
     IllumFCT : list
         illumination function in V.
+    Y : list
+        Dirac brush with number of photoelectrons per pulse. 
 
     """
 
@@ -191,7 +193,9 @@ def scintiPulses(enerVec, timeFrame=1e-4,
     
     # Illumination function
     IllumFCT=np.zeros(len(t))
+    Y =np.zeros(len(t))
     for i, ti in enumerate(arrival_times):
+        Y[i] = Nphe[i]
         IllumFCT0 = (1-pdelayed)*(Nphe[i]/tau) * np.exp(-t/tau)+pdelayed*(Nphe[i]/tau2) * np.exp(-t/tau2) # Exponential law x the nb of PHE
         IllumFCT0 *= timeStep
         if Nphe[i] > 0:
@@ -231,4 +235,18 @@ def scintiPulses(enerVec, timeFrame=1e-4,
         for i in range(CRorder):
             v = cr_filter(v, tauAmp, timeStep)
     if quantiz: v = saturate(v, full_scale_range)
-    return t, v, IllumFCT
+    return t, v, IllumFCT, Y
+
+# scintiPulses(np.ones(100), timeFrame=1e-4,
+#                                  timeStep=1e-9, tau = 100e-9,
+#                                  tau2 = 2000e-9, pdelayed = 0,
+#                                  ICR = 1e5, L = 1, se_pulseCharge = 1,
+#                                  pulseSpread = 0.1, voltageBaseline = 0,
+#                                  pulseWidth = 1e-9,
+#                                  thermalNoise=False, sigmathermalNoise = 0.01,
+#                                  antiAliasing = False, bandwidth = 2e8, 
+#                                  quantiz=False, coding_resolution_bits=14, full_scale_range=2,
+#                                  thermonionic=False, thermooinicPeriod = 1e-4,
+#                                  pream = False, tauPream = 10e-6,
+#                                  ampli = False, tauAmp = 2e-6, CRorder=1,
+#                                  returnPulse = False)
