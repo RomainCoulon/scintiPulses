@@ -87,7 +87,7 @@ def cr_filter(v, tau, dt):
     return v_out
 
 def scintiPulses(enerVec, timeFrame=1e-4,
-                                 timeStep=1e-9, tau = 100e-9,
+                                 samplingRate=500e6, tau = 100e-9,
                                  tau2 = 2000e-9, pdelayed = 0,
                                  ICR = 1e5, L = 1, se_pulseCharge = 1,
                                  pulseSpread = 0.1, voltageBaseline = 0,
@@ -110,8 +110,8 @@ def scintiPulses(enerVec, timeFrame=1e-4,
         vector of deposited energies in keV.
     timeFrame : float, optional
         duration of the signal frame in s. The default is 1e-4.
-    timeStep : float, optional
-        sampling rate in s. The default is 1e-9.
+    samplingRate : float, optional
+        sampling rate in S/s. The default is 500 MS/s.
     tau : float, optional
         decay period of the fluorescence. The default is 100e-9.
     tau2 : float, optional
@@ -137,7 +137,7 @@ def scintiPulses(enerVec, timeFrame=1e-4,
     antiAliasing : boolean, optional
         add a low pass filtering from anti-aliasing filter. The default is False.
     bandwidth : float, optional
-        cutting frequency of the anti-aliasing filter in s-1. The default is 2e8.
+        cutting frequency of the anti-aliasing filter in s-1. 0.4*samplignRate is recommanded. The default is 2e8.
     quantiz : boolean, optional
         add a quantization noise. The default is False.
     coding_resolution_bits : integer, optional
@@ -183,7 +183,9 @@ def scintiPulses(enerVec, timeFrame=1e-4,
     if N>len(enerVec):
         print(f"boostrap {100*len(enerVec)/N} %")
         enerVec = np.random.choice(enerVec, N, replace=True) # boostraping
-        
+    
+    timeStep = 1/samplingRate
+    
     t = np.arange(0,timeFrame,timeStep)
     n = len(t)
     
@@ -252,19 +254,23 @@ def scintiPulses(enerVec, timeFrame=1e-4,
 # import tdcrpy as td
 # import matplotlib.pyplot as plt
 # enerVec = td.TDCR_model_lib.readRecQuenchedEnergies()[0]
-# t, v, IllumFCT, quantumIllumFCT, quantumIllumFCTdark, Y = scintiPulses(enerVec, timeFrame=1e-4,
-#                                   timeStep=5e-9, tau = 200e-9,
+
+# samplingRate = 0.25e9
+# sigmathermalNoise = 0.0
+# pulseWidth = 20e-9
+# t, v, IllumFCT, quantumIllumFCT, quantumIllumFCTdark, Y = scintiPulses(enerVec, timeFrame=10e-4,
+#                                   samplingRate=samplingRate, tau = 200e-9,
 #                                   tau2 = 2000e-9, pdelayed = 0,
-#                                   ICR = 1e6, L = 1, se_pulseCharge = 1,
-#                                   pulseSpread = 0.1, voltageBaseline = 0,
-#                                   pulseWidth = 10e-9,
-#                                   thermalNoise=False, sigmathermalNoise = 0.01,
-#                                   antiAliasing = False, bandwidth = 2e8, 
-#                                   quantiz=False, coding_resolution_bits=14, full_scale_range=2,
-#                                   thermonionic=False, thermooinicPeriod = 1e-4,
+#                                   ICR = 1e3, L = 1, se_pulseCharge = 1,
+#                                   pulseSpread = 0.0, voltageBaseline = 0,
+#                                   pulseWidth = pulseWidth,
+#                                   thermalNoise=True, sigmathermalNoise = sigmathermalNoise,
+#                                   antiAliasing = True, bandwidth = samplingRate*0.4, 
+#                                   quantiz=True, coding_resolution_bits=14, full_scale_range=2,
+#                                   thermonionic=True, thermooinicPeriod = 100e-6,
 #                                   pream = False, tauPream = 10e-6,
 #                                   ampli = False, tauAmp = 2e-6, CRorder=1,
-#                                   returnPulse = True)
+#                                   returnPulse = False)
 
 
 # plt.figure("plot")
@@ -275,7 +281,7 @@ def scintiPulses(enerVec, timeFrame=1e-4,
 # plt.plot(t, v,'-r', label="output signal")
 # plt.plot(t, IllumFCT,"-b", label="illumation function")
 
-# plt.xlim([0,5e-6])
+# # plt.xlim([0,5e-6])
 # plt.legend()
 # plt.xlabel(r"$t$ /s")
 # plt.ylabel(r"$v$ /V")
