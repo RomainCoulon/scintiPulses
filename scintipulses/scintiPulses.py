@@ -170,7 +170,9 @@ def scintiPulses(enerVec, timeFrame=1e-4,
     IllumFCT : list
         illumination function in V.
     Y : list
-        Dirac brush with number of photoelectrons per pulse. 
+        Dirac brush with number of photoelectrons per pulse.
+    N1 : interger
+        number of pulses in the frame
 
     """
 
@@ -197,11 +199,13 @@ def scintiPulses(enerVec, timeFrame=1e-4,
     IllumFCT=np.zeros(len(t))
     # IllumFCTcum=np.zeros(len(t))
     Y =np.zeros(len(t))
+    N1 = 0 # true event
     for i, ti in enumerate(arrival_times):
         IllumFCT0 = (1-pdelayed)*(Nphe[i]/tau) * np.exp(-t/tau)+pdelayed*(Nphe[i]/tau2) * np.exp(-t/tau2) # Exponential law x the nb of PHE
         IllumFCT0 *= timeStep
         # cumCharge = np.cumsum(IllumFCT0)
         if Nphe[i] > 0:
+            N1 +=1
             if returnPulse:
                 IllumFCT=IllumFCT0
                 break
@@ -247,7 +251,7 @@ def scintiPulses(enerVec, timeFrame=1e-4,
         for i in range(CRorder):
             v = cr_filter(v, tauAmp, timeStep)
     if quantiz: v = saturate(v, full_scale_range)
-    return t, v, IllumFCT, quantumIllumFCT, quantumIllumFCTdark, Y
+    return t, v, IllumFCT, quantumIllumFCT, quantumIllumFCTdark, Y, N1
 
 
 
@@ -258,10 +262,10 @@ def scintiPulses(enerVec, timeFrame=1e-4,
 # samplingRate = 0.25e9
 # sigmathermalNoise = 0.0
 # pulseWidth = 20e-9
-# t, v, IllumFCT, quantumIllumFCT, quantumIllumFCTdark, Y = scintiPulses(enerVec, timeFrame=10e-4,
+# t, v, IllumFCT, quantumIllumFCT, quantumIllumFCTdark, Y, N1 = scintiPulses(enerVec, timeFrame=10e-4,
 #                                   samplingRate=samplingRate, tau = 200e-9,
 #                                   tau2 = 2000e-9, pdelayed = 0,
-#                                   ICR = 1e3, L = 1, se_pulseCharge = 1,
+#                                   ICR = 1e4, L = 1, se_pulseCharge = 1,
 #                                   pulseSpread = 0.0, voltageBaseline = 0,
 #                                   pulseWidth = pulseWidth,
 #                                   thermalNoise=True, sigmathermalNoise = sigmathermalNoise,
@@ -272,6 +276,7 @@ def scintiPulses(enerVec, timeFrame=1e-4,
 #                                   ampli = False, tauAmp = 2e-6, CRorder=1,
 #                                   returnPulse = False)
 
+# print(N1)
 
 # plt.figure("plot")
 # plt.clf()
