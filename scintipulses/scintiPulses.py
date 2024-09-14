@@ -193,7 +193,8 @@ def scintiPulses(enerVec, timeFrame=1e-4,
     
     
     enerVec = np.asarray(enerVec)
-    Nphe = np.random.poisson(enerVec*L) # nb de photoelectron / decay
+    # Nphe = np.random.poisson(enerVec*L) # nb de photoelectron / decay
+    Nphe = enerVec*L # nb de photoelectron / decay
     
     # Illumination function
     IllumFCT=np.zeros(len(t))
@@ -223,7 +224,8 @@ def scintiPulses(enerVec, timeFrame=1e-4,
     # Quantum illumination function
     v=voltageBaseline*np.ones(n)
     for i, l in enumerate(IllumFCT):
-        ne = int(l) + np.random.binomial(n=1, p=l-int(l))
+        # ne = int(l) + np.random.binomial(n=1, p=l-int(l))
+        ne = np.random.poisson(l)
         if ne>0:
             vi = np.random.normal(se_pulseCharge,pulseSpread,ne)
             v[i]+=sum(vi)
@@ -262,19 +264,19 @@ def scintiPulses(enerVec, timeFrame=1e-4,
 # samplingRate = 0.25e9
 # sigmathermalNoise = 0.0
 # pulseWidth = 20e-9
-# t, v, IllumFCT, quantumIllumFCT, quantumIllumFCTdark, Y, N1 = scintiPulses(enerVec, timeFrame=10e-4,
+# t, v, IllumFCT, quantumIllumFCT, quantumIllumFCTdark, Y, N1 = scintiPulses(enerVec, timeFrame=1e-6,
 #                                   samplingRate=samplingRate, tau = 200e-9,
 #                                   tau2 = 2000e-9, pdelayed = 0,
-#                                   ICR = 1e4, L = 1, se_pulseCharge = 1,
+#                                   ICR = 1e7, L = 1, se_pulseCharge = 1,
 #                                   pulseSpread = 0.0, voltageBaseline = 0,
 #                                   pulseWidth = pulseWidth,
-#                                   thermalNoise=True, sigmathermalNoise = sigmathermalNoise,
-#                                   antiAliasing = True, bandwidth = samplingRate*0.4, 
-#                                   quantiz=True, coding_resolution_bits=14, full_scale_range=2,
+#                                   thermalNoise=False, sigmathermalNoise = sigmathermalNoise,
+#                                   antiAliasing = False, bandwidth = samplingRate*0.4, 
+#                                   quantiz=False, coding_resolution_bits=14, full_scale_range=2,
 #                                   thermonionic=True, thermooinicPeriod = 100e-6,
 #                                   pream = False, tauPream = 10e-6,
 #                                   ampli = False, tauAmp = 2e-6, CRorder=1,
-#                                   returnPulse = False)
+#                                   returnPulse = True)
 
 # print(N1)
 
