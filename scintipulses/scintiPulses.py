@@ -208,7 +208,9 @@ def scintiPulses(enerVec, timeFrame=1e-4,
         if Nphe[i] > 0:
             N1 +=1
             if returnPulse:
-                IllumFCT=IllumFCT0
+                IllumFCT=np.concatenate((np.zeros(len(IllumFCT0)),IllumFCT0))
+                t = np.arange(-timeFrame,timeFrame,timeStep)
+                n = len(t)
                 break
             else:
                 flag = int(ti[0]/timeStep)
@@ -259,7 +261,7 @@ def scintiPulses(enerVec, timeFrame=1e-4,
 
 # import tdcrpy as td
 # import matplotlib.pyplot as plt
-# enerVec = td.TDCR_model_lib.readRecQuenchedEnergies()[0]
+# enerVec = 100*np.ones(10) #td.TDCR_model_lib.readRecQuenchedEnergies()[0]
 
 # samplingRate = 0.25e9
 # sigmathermalNoise = 0.0
