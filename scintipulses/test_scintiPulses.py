@@ -9,8 +9,8 @@ import scintiPulses as sp
 import tdcrpy as td
 import matplotlib.pyplot as plt
 
-enerVec = td.TDCR_model_lib.readRecQuenchedEnergies()[0] # energy vector of deposited quenched energies in keV
-#enerVec = [100] 
+# enerVec = td.TDCR_model_lib.readRecQuenchedEnergies()[0] # energy vector of deposited quenched energies in keV
+enerVec = [100] 
 
 
 timeFrame = 10e-6                # duration of the sequence in s
@@ -47,7 +47,7 @@ CRorder=1                       # order of the CR filter
 
 returnPulse = False              # to return one pulse
 
-t, v, IllumFCT, quantumIllumFCT, quantumIllumFCTdark, Y = sp.scintiPulses(enerVec, timeFrame=timeFrame,
+t, v, IllumFCT, quantumIllumFCT, quantumIllumFCTdark, Y, N1= sp.scintiPulses(enerVec, timeFrame=timeFrame,
                                   samplingRate=samplingRate, tau = tau,
                                   tau2 = tau2, pdelayed = pdelayed,
                                   ICR = ICR, L = L, se_pulseCharge = se_pulseCharge,
@@ -63,13 +63,23 @@ t, v, IllumFCT, quantumIllumFCT, quantumIllumFCTdark, Y = sp.scintiPulses(enerVe
 
 plt.figure("plot")
 plt.clf()
-plt.title("Illumination function")
-plt.plot(t, quantumIllumFCT,"-k", label="quantum illumation function")
-plt.plot(t, quantumIllumFCTdark,"-g", label="quantum illumation function + dark noise")
-plt.plot(t, v,'-r', label="output signal")
-plt.plot(t, IllumFCT,"-b", label="illumation function")
-
-# plt.xlim([0,5e-6])
+plt.plot(t, IllumFCT,"-", label=r"$v^{(0)}$")
+plt.plot(t, quantumIllumFCT,"-", alpha=0.7, label=r"$v^{(1)}$")
 plt.legend()
 plt.xlabel(r"$t$ /s")
-plt.ylabel(r"$v$ /V")
+plt.ylabel(r"$v$ /s$^{-1}$")
+
+
+# plt.figure("plot")
+# plt.clf()
+# # plt.title("Illumination function")
+# plt.plot(t, quantumIllumFCT,"-k", label="quantum illumation function")
+# # plt.plot(t, quantumIllumFCTdark,"-g", label="quantum illumation function + dark noise")
+# # plt.plot(t, v,'-r', label="output signal")
+# plt.plot(t, IllumFCT,"-b", label="illumation function")
+# # plt.plot(t, Y,"-b", label="illumation function")
+# # plt.xlim([0,5e-6])
+# plt.legend()
+# plt.xlabel(r"$t$ /s")
+# # plt.ylabel(r"$v$ /V")
+# plt.ylabel(r"$v^{(1)}$ /s$^{-1}$")

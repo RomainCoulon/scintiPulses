@@ -8,6 +8,7 @@ Created on Mon Aug 19 16:52:24 2024
 import numpy as np
 import scipy.ndimage as sp
 from scipy.signal import butter, filtfilt
+from scipy.stats import truncnorm
 
 def low_pass_filter(v, timeStep, bandwidth):
     # Calculate the Nyquist frequency
@@ -93,6 +94,7 @@ def scintiPulses(enerVec, timeFrame=1e-4,
                                  pulseSpread = 0.1, voltageBaseline = 0,
                                  pulseWidth = 1e-9,
                                  thermalNoise=False, sigmathermalNoise = 0.01,
+                                 afterPulses = False, rA = 1e-3, tauA = 5e-6, sigmaA = 1e-6,
                                  antiAliasing = False, bandwidth = 2e8, 
                                  quantiz=False, coding_resolution_bits=14, full_scale_range=2,
                                  thermonionic=False, thermooinicPeriod = 1e-4,
@@ -234,6 +236,17 @@ def scintiPulses(enerVec, timeFrame=1e-4,
     
     quantumIllumFCT=sp.gaussian_filter1d(v,pulseWidth/timeStep)
     
+    # After-pulses
+    if afterPulses:
+        for i, l in enumerate(IllumFCT):
+            # ne = int(l) + np.random.binomial(n=1, p=l-int(l))
+            if l>0:
+                a, b = (0 -tauA) / sigmaA, ((n-i)*timeStep - tauA) / sigmaA
+                delta_A = truncnorm.rvs(a, b, loc=tauA, scale=sigmaA)
+                t_iAP = int(delta_A/timeStep)
+                v[i+t_iAP]+=np.random.poisson(rA*l)
+    
+    
     # Thermoionic noise
     if thermonionic:
         arrival_times2 = [0]
@@ -266,29 +279,30 @@ def scintiPulses(enerVec, timeFrame=1e-4,
 # samplingRate = 0.25e9
 # sigmathermalNoise = 0.0
 # pulseWidth = 20e-9
-# t, v, IllumFCT, quantumIllumFCT, quantumIllumFCTdark, Y, N1 = scintiPulses(enerVec, timeFrame=1e-6,
+# t, v, IllumFCT, quantumIllumFCT, quantumIllumFCTdark, Y, N1 = scintiPulses(enerVec, timeFrame=100e-6,
 #                                   samplingRate=samplingRate, tau = 200e-9,
 #                                   tau2 = 2000e-9, pdelayed = 0,
-#                                   ICR = 1e7, L = 1, se_pulseCharge = 1,
+#                                   ICR = 1e4, L = 1, se_pulseCharge = 1,
 #                                   pulseSpread = 0.0, voltageBaseline = 0,
 #                                   pulseWidth = pulseWidth,
 #                                   thermalNoise=False, sigmathermalNoise = sigmathermalNoise,
+#                                   afterPulses = True, rA = 50e-3, tauA = 10e-6, sigmaA = 1e-7,
 #                                   antiAliasing = False, bandwidth = samplingRate*0.4, 
 #                                   quantiz=False, coding_resolution_bits=14, full_scale_range=2,
-#                                   thermonionic=True, thermooinicPeriod = 100e-6,
+#                                   thermonionic=False, thermooinicPeriod = 100e-6,
 #                                   pream = False, tauPream = 10e-6,
 #                                   ampli = False, tauAmp = 2e-6, CRorder=1,
-#                                   returnPulse = True)
+#                                   returnPulse = False)
 
 # print(N1)
 
 # plt.figure("plot")
 # plt.clf()
 # plt.title("Illumination function")
-# plt.plot(t, quantumIllumFCT,"-k", label="quantum illumation function")
-# plt.plot(t, quantumIllumFCTdark,"-g", label="quantum illumation function + dark noise")
-# plt.plot(t, v,'-r', label="output signal")
-# plt.plot(t, IllumFCT,"-b", label="illumation function")
+# plt.plot(t, quantumIllumFCT,"-", label="quantum illumation function")
+# # plt.plot(t, quantumIllumFCTdark,"-g", label="quantum illumation function + dark noise")
+# plt.plot(t, v,'-', alpha = 0.5, label="output signal")
+# # plt.plot(t, IllumFCT,"-b", label="illumation function")
 
 # # plt.xlim([0,5e-6])
 # plt.legend()
