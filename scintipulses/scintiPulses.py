@@ -87,79 +87,88 @@ def cr_filter(v, tau, dt):
 
     return v_out
 
-def scintiPulses(enerVec, timeFrame=1e-4,
-                                 samplingRate=500e6, tau = 100e-9,
-                                 tau2 = 2000e-9, pdelayed = 0,
-                                 ICR = 1e5, L = 1, se_pulseCharge = 1,
-                                 pulseSpread = 0.1, voltageBaseline = 0,
-                                 pulseWidth = 1e-9,
-                                 thermalNoise=False, sigmathermalNoise = 0.01,
+def scintiPulses(Y, tN=1e-4, fS=500e6, tau1 = 100e-9, tau2 = 2000e-9, p_delayed = 0,
+                                 lambda_ = 1e5, L = 1, C1 = 1, sigma_C1 = 0, I=-1,
+                                 tauS = 1e-9,
                                  afterPulses = False, rA = 1e-3, tauA = 5e-6, sigmaA = 1e-6,
-                                 antiAliasing = False, bandwidth = 2e8, 
-                                 quantiz=False, coding_resolution_bits=14, full_scale_range=2,
-                                 thermonionic=False, thermooinicPeriod = 1e-4,
-                                 pream = False, tauPream = 10e-6,
-                                 ampli = False, tauAmp = 2e-6, CRorder=1,
+                                 darkNoise=False, fD = 1e-4,
+                                 electronicNoise=False, sigmaRMS = 0.01,
+                                 pream = False, G1 = 1, tauRC = 10e-6,
+                                 ampli = False, G2 = 1, tauCR = 2e-6, nCR=1,                                 
+                                 digitization=False, fc = 2e8, R=14, Vs=2,
                                  returnPulse = False):
     """
     This function simulate a signal from a scintillation detector.
-    It implements a quantum illumation function
-    It is parametrized by the parameters explained below.
 
     Parameters
     ----------
-    enerVec : list
+    Y : list
         vector of deposited energies in keV.
-    timeFrame : float, optional
+    tN : float, optional
         duration of the signal frame in s. The default is 1e-4.
-    samplingRate : float, optional
+    fS : float, optional
         sampling rate in S/s. The default is 500 MS/s.
-    tau : float, optional
+    tau1 : float, optional
         decay period of the fluorescence. The default is 100e-9.
     tau2 : float, optional
         decay period of the delayed fluorescence. The default is 2000e-9.
-    pdelayed : float, optional
+    p_delayed : float, optional
         ratio of energy converted in delayed fluorescence. The default is 0.
-    ICR : float, optional
+    lambda_ : float, optional
         input count rate in s-1. The default is 1e5.
-    L : float, optional
-        scintillation light yield in keV-1. The default is 1.
-    se_pulseCharge : float, optional
-        charge of a single photoelectron in Vs. The default is 1.
-    pulseSpread : float, optional
-        spreading of single photoelectron charges. The default is 0.1.
-    voltageBaseline : float, optional
-        baseline voltage (offset) in V. The default is 0.
-    pulseWidth : float, optional
+    C1 : float, optional
+        capacitance of the phototube in elementary charge per volt unit (in 1.6e-19 F). The default is 1.
+    sigma_C1 : float, optional
+        standard deviation of the capaciance fluctuation in elementary charge per volt unit (in 1.6e-19 F). The default is 0.
+    I : integer
+        voltage invertor to display positive pulses. The default is -1.
+    tauS : float, optional
         pulse width of single electron in s. The default is 1e-9.
-    thermalNoise : boolean, optional
-        add a gaussian white noise. The default is False.
-    sigmathermalNoise : float, optional
-        amplitude of the gaussian white noise (std parameter). The default is 0.01.
-    antiAliasing : boolean, optional
-        add a low pass filtering from anti-aliasing filter. The default is False.
-    bandwidth : float, optional
-        cutting frequency of the anti-aliasing filter in s-1. 0.4*samplignRate is recommanded. The default is 2e8.
-    quantiz : boolean, optional
-        add a quantization noise. The default is False.
-    coding_resolution_bits : integer, optional
-        resolution of voltage encoding in bit. The default is 14.
-    full_scale_range : float, optional
-        voltage dynamic of the electronics (+/-). The default is 2.
-    thermonionic : boolean, optional
-        activate the thermoionic noise from PMT. The default is False.
-    thermooinicPeriod : float, optional
-        time period of the thermoionic noise in s. The default is 1e-4.
+    
+    afterPulses : boolean, optional
+        add after-pulses. The default is False.
+    rA : float, optional
+        ratio of charge of after-pulses. The default is 1e-3.
+    tauA : float, optional
+        mean delay of after-pulses in second. The default is 5e-6 s.
+    sigmaA: float, optional
+        time-spread of after-pulses in second. The default is 1e-6 s.
+    
+    electronicNoise : boolean, optional
+        add a gaussian white noise (Johnson-Nyquist noise). The default is False.
+    sigmaRMS : float, optional
+        root mean square value of the Johnson-Nyquist noise in volt. The default is 0.01 V.
+    
+    darkNoise : boolean, optional
+        activate the thermoionic noise (dark noise) from PMT. The default is False.
+    fD : float, optional
+        frequancy of the thermoionic noise in s-1. The default is 1e4.
+        
     pream : boolean, optional
         activate the signal filtering through the RC filter of a preamplifier. The default is False.
-    tauPream : float, optional
+    G1 : float, optional
+        gain of the preamplifier. The default is 1.
+    tauRC : float, optional
         time period of the preamplifier in s. The default is 10e-6.
+    
     ampli : boolean, optional
         activate the signal filtering through the CR filter of a fast amplifier. The default is False.
-    tauAmp : float, optional
-        time period of the fast amplifier in s. The default is 2e-6.
-    CRorder : float, optional
+    G2 : float, optional
+        gain of the fast amplifier. The default is 1.
+    tauCR : float, optional
+        time period of the fast amplifier in s. The default is 2e-6 s.
+    nCR : float, optional
         order of the CR filter of the fast amplifier. The default is 1.
+    
+    digitization : boolean, optional
+        simulate the digitizer. The default is False.
+    fc : float, optional
+        cutoff frequency of the anti-aliasing filter in s-1. 0.4*fS is recommanded. The default is 2e8 Hz.
+    R : integer
+        resoltion of the ADC in bit. The default is 14 bits.
+    Vs:
+        voltage dynamic range (+/-) in volt. The defaut is 2 V.
+    
     returnPulse : boolean, optional
         to return a single pulse for observation. The default is False.
 
@@ -167,143 +176,171 @@ def scintiPulses(enerVec, timeFrame=1e-4,
     -------
     t : list
         time vector in s.
-    v : list
-        simulated scintillation signal in V.
-    IllumFCT : list
-        illumination function in V.
-    Y : list
-        Dirac brush with number of photoelectrons per pulse.
-    N1 : interger
-        number of pulses in the frame
+    v0 : list
+        simulated charge density from the theoretical illumination function (in e).
+    v1 : list
+        simulated charge density with the shot noise from the quantum illumination function (in e).
+    v2 : list
+        simulated charge density with the after-pulses (in e).
+    v3 : list
+        simulated charge density with the dark noise (in e).
+    v4 : list
+        simulated volatge signal of the photodetector anode (in V).
+    v5 : list
+        simulated volatge signal of the photodetector anode with the Johnson-Nyquist noise (in V).
+    v6 : list
+        simulated volatge signal of the preamplifier (in V).
+    v7 : list
+        simulated volatge signal of the fast amplifier (in V).
+    v8 : list
+        simulated volatge signal encoded by the digitizer (in V).
+    y0 : list
+        Dirac brush of energy (in keV).
+    y1 : list
+        Dirac brush of mean charges (in e).
 
     """
 
     arrival_times = [0]
-    while arrival_times[-1]<timeFrame:
-        arrival_times.append(arrival_times[-1] + np.random.exponential(scale=1/ICR, size=1))
+    while arrival_times[-1]<tN:
+        arrival_times.append(arrival_times[-1] + np.random.exponential(scale=1/lambda_, size=1))
     arrival_times=arrival_times[1:-1]
     
     N = len(arrival_times)
-    if N>len(enerVec):
-        print(f"boostrap {100*len(enerVec)/N} %")
-        enerVec = np.random.choice(enerVec, N, replace=True) # boostraping
+    if N>len(Y):
+        print(f"boostrap {100*len(Y)/N} %")
+        Y = np.random.choice(Y, N, replace=True) # boostraping
     
-    timeStep = 1/samplingRate
+    timeStep = 1/fS
     
-    t = np.arange(0,timeFrame,timeStep)
+    t = np.arange(0,tN,timeStep)
     n = len(t)
     
     
-    enerVec = np.asarray(enerVec)
-    # Nphe = np.random.poisson(enerVec*L) # nb de photoelectron / decay
-    Nphe = enerVec*L # nb de photoelectron / decay
+    Y = np.asarray(Y)
+    # Nphe = np.random.poisson(Y*L) # nb de photoelectron / decay
+    Nphe = Y*L # nb de photoelectron / decay
     
-    # Illumination function
-    IllumFCT=np.zeros(len(t))
-    # IllumFCTcum=np.zeros(len(t))
-    Y =np.zeros(len(t))
-    N1 = 0 # true event
+    # Illumination function (v0)
+    v0=np.zeros(n)
+    y0 =np.zeros(n)
+    y1 = np.zeros(n)
     for i, ti in enumerate(arrival_times):
-        IllumFCT0 = (1-pdelayed)*(Nphe[i]/tau) * np.exp(-t/tau)+pdelayed*(Nphe[i]/tau2) * np.exp(-t/tau2) # Exponential law x the nb of PHE
+        IllumFCT0 = (1-p_delayed)*(Nphe[i]/tau1) * np.exp(-t/tau1)+p_delayed*(Nphe[i]/tau2) * np.exp(-t/tau2) # Exponential law x the nb of PHE
         IllumFCT0 *= timeStep
         # cumCharge = np.cumsum(IllumFCT0)
+        flag0 = int(ti[0]/timeStep)
+        y0[flag0] += Y[i]
         if Nphe[i] > 0:
-            N1 +=1
             if returnPulse:
-                IllumFCT=np.concatenate((np.zeros(len(IllumFCT0)),IllumFCT0))
-                t = np.arange(-timeFrame,timeFrame,timeStep)
+                v0=np.concatenate((np.zeros(len(IllumFCT0)),IllumFCT0))
+                t = np.arange(-tN,tN,timeStep)
                 n = len(t)
                 break
             else:
                 flag = int(ti[0]/timeStep)
-                IllumFCT += np.concatenate((np.zeros(flag),IllumFCT0[:n-flag]))
-                # flag2 = int(tauPream/timeStep)
-                # if flag2>n: flag2=n
-                # IllumFCTcum += np.concatenate((np.zeros(flag),cumCharge[:n-flag]))
-                Y[flag] += Nphe[i]
-    
-    # collCharge = np.where(IllumFCT > 1e-3, 1, 0)
+                v0 += np.concatenate((np.zeros(flag),IllumFCT0[:n-flag]))
+                y1[flag] += Nphe[i]
                 
     
     # Quantum illumination function
-    v=voltageBaseline*np.ones(n)
-    for i, l in enumerate(IllumFCT):
+    # v=voltageBaseline*np.ones(n)
+    v1=np.zeros(n)
+    for i, l in enumerate(v0):
         # ne = int(l) + np.random.binomial(n=1, p=l-int(l))
         ne = np.random.poisson(l)
         if ne>0:
-            vi = np.random.normal(se_pulseCharge,pulseSpread,ne)
-            v[i]+=sum(vi)
-    
-    quantumIllumFCT=sp.gaussian_filter1d(v,pulseWidth/timeStep)
-    
+            # vi = np.random.normal(se_pulseCharge,pulseSpread,ne)
+            # v1[i]+=sum(vi)
+            v1[i]+=ne
+            # print("here",i, l, v1[i])
+        
     # After-pulses
+    v2=v1.copy()
     if afterPulses:
-        for i, l in enumerate(IllumFCT):
+        for i, l in enumerate(v1):
             # ne = int(l) + np.random.binomial(n=1, p=l-int(l))
             if l>0:
                 a, b = (0 -tauA) / sigmaA, ((n-i)*timeStep - tauA) / sigmaA
                 delta_A = truncnorm.rvs(a, b, loc=tauA, scale=sigmaA)
                 t_iAP = int(delta_A/timeStep)
-                v[i+t_iAP]+=np.random.poisson(rA*l)
-    
+                if i+t_iAP<n :
+                    v2[i+t_iAP]+=np.random.poisson(rA*l)
     
     # Thermoionic noise
-    if thermonionic:
+    v3=v2.copy()
+    if darkNoise:
         arrival_times2 = [0]
-        while arrival_times2[-1]<timeFrame:
-            arrival_times2.append(arrival_times2[-1] + np.random.exponential(scale=thermooinicPeriod, size=1))
+        while arrival_times2[-1]<tN:
+            arrival_times2.append(arrival_times2[-1] + np.random.exponential(scale=1/fD, size=1))
         arrival_times2=arrival_times2[1:-1]
         for i, ti in enumerate(arrival_times2):
             flag = int(ti[0]/timeStep)
-            vi = np.random.normal(se_pulseCharge,pulseSpread,1)
-            v[flag]+=vi[0]
-       
-    v=sp.gaussian_filter1d(v,pulseWidth/timeStep)
-    quantumIllumFCTdark=v
-    if thermalNoise: v=v+sigmathermalNoise*np.random.normal(0,1,n)
-    if antiAliasing: v = low_pass_filter(v, timeStep, bandwidth)
-    if quantiz: v = add_quantization_noise(v, coding_resolution_bits, full_scale_range)
-    if pream: v = rc_filter(v, tauPream, timeStep)
+            # vi = 1np.random.normal(se_pulseCharge,pulseSpread,1)
+            v3[flag]+=1#vi[0]
+            # print("noise",flag, v3[flag]-v2[flag])
+    
+    # Voltage conversion
+    kC = np.random.normal(1,sigma_C1,1)
+    v4 = -I*(kC/C1)*sp.gaussian_filter1d(v3,tauS/timeStep)
+    
+    # thermal noise
+    v5=v4.copy()
+    if electronicNoise: v5+=sigmaRMS*np.random.normal(0,1,n)
+    
+    # preamplifier
+    v6=v5.copy()
+    if pream: v6 = G1*rc_filter(v5, tauRC, timeStep)
+    
+    # amplifier
+    v7=v6.copy()
     if ampli:
-        for i in range(CRorder):
-            v = cr_filter(v, tauAmp, timeStep)
-    if quantiz: v = saturate(v, full_scale_range)
-    return t, v, IllumFCT, quantumIllumFCT, quantumIllumFCTdark, Y, N1
+        for i in range(nCR):
+            v7 = G2*cr_filter(v6, tauCR, timeStep)
+       
+    # digitizer
+    v8=v7.copy()
+    if digitization:
+        v8 = low_pass_filter(v7, timeStep, fc)
+        v8 = add_quantization_noise(v8, R, Vs)
+        v8 = saturate(v8, Vs*2)
+    return t, v0, v1, v2, v3, v4, v5, v6, v7, v8, y0, y1
 
 
 
 # import tdcrpy as td
 # import matplotlib.pyplot as plt
-# enerVec = 100*np.ones(10) #td.TDCR_model_lib.readRecQuenchedEnergies()[0]
+# Y = 50*np.ones(10) #td.TDCR_model_lib.readRecQuenchedEnergies()[0]
 
-# samplingRate = 0.25e9
-# sigmathermalNoise = 0.0
-# pulseWidth = 20e-9
-# t, v, IllumFCT, quantumIllumFCT, quantumIllumFCTdark, Y, N1 = scintiPulses(enerVec, timeFrame=100e-6,
-#                                   samplingRate=samplingRate, tau = 200e-9,
-#                                   tau2 = 2000e-9, pdelayed = 0,
-#                                   ICR = 1e4, L = 1, se_pulseCharge = 1,
-#                                   pulseSpread = 0.0, voltageBaseline = 0,
-#                                   pulseWidth = pulseWidth,
-#                                   thermalNoise=False, sigmathermalNoise = sigmathermalNoise,
-#                                   afterPulses = True, rA = 50e-3, tauA = 10e-6, sigmaA = 1e-7,
-#                                   antiAliasing = False, bandwidth = samplingRate*0.4, 
-#                                   quantiz=False, coding_resolution_bits=14, full_scale_range=2,
-#                                   thermonionic=False, thermooinicPeriod = 100e-6,
-#                                   pream = False, tauPream = 10e-6,
-#                                   ampli = False, tauAmp = 2e-6, CRorder=1,
+# fS = 0.5e9
+# sigmaRMS = 0.1
+# tauS = 20e-9
+# t, v0, v1, v2, v3, v4, v5, v6, v7, v8, y0, y1 = scintiPulses(Y, tN=20e-6,
+#                                   fS=fS, tau1 = 200e-9,
+#                                   tau2 = 2000e-9, p_delayed = 0,
+#                                   lambda_ = 0.5e5, L = 1, C1 = 0.1, sigma_C1 = 0, I=-1,
+#                                   tauS = tauS,
+#                                   electronicNoise=True, sigmaRMS = sigmaRMS,
+#                                   afterPulses = False, rA = 50e-3, tauA = 10e-6, sigmaA = 1e-7,
+#                                   digitization=True, fc = fS*0.4, R=14, Vs=2,
+#                                   darkNoise=True, fD = 10e-6,
+#                                   pream = False, G1=10, tauRC = 10e-6,
+#                                   ampli = False, G2=10, tauCR = 2e-6, nCR=1,
 #                                   returnPulse = False)
-
-# print(N1)
 
 # plt.figure("plot")
 # plt.clf()
 # plt.title("Illumination function")
-# plt.plot(t, quantumIllumFCT,"-", label="quantum illumation function")
-# # plt.plot(t, quantumIllumFCTdark,"-g", label="quantum illumation function + dark noise")
-# plt.plot(t, v,'-', alpha = 0.5, label="output signal")
-# # plt.plot(t, IllumFCT,"-b", label="illumation function")
-
+# # plt.plot(t, v0,"-", label="illumation function")
+# plt.plot(t, y0,"-", label="Energy")
+# plt.plot(t, y1,"-", label="charges")
+# plt.plot(t, v1,"-", alpha=0.4, label="shot noise")
+# # plt.plot(t, v2,"-", alpha=0.4, label="after-pulses")
+# # plt.plot(t, v3,"-", alpha=0.4, label="dark noise")
+# # plt.plot(t, v4,"-", alpha=0.4, label="transimp")
+# # plt.plot(t, v5,"-", alpha=0.4, label="therm. noise")
+# # plt.plot(t, v6,"-", alpha=0.4, label="preamp.")
+# # plt.plot(t, v8,"-", alpha=0.4, label="amp.")
 # # plt.xlim([0,5e-6])
 # plt.legend()
 # plt.xlabel(r"$t$ /s")
