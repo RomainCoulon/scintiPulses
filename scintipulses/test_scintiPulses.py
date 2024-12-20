@@ -68,6 +68,31 @@ t, v, IllumFCT, quantumIllumFCT, quantumIllumFCTdark, Y, N1= sp.scintiPulses(ene
                                   ampli = ampli, tauAmp = tauAmp, CRorder=CRorder,
                                   returnPulse = returnPulse)
 
+
+
+"""
+Filtrage par Moyenne Mobile
+"""
+import numpy as np 
+def moving_average_filter(signal, window_size):
+    return np.convolve(signal, np.ones(window_size)/window_size, mode='same')
+
+window_size = 10
+filtered_signal = moving_average_filter(noisy_signal, window_size)
+
+
+"""
+Filtrage de Wiener
+"""
+from scipy.signal import wiener
+
+filtered_signal = wiener(noisy_signal, mysize=3, noise=noise_std_dev)
+
+plt.plot(filtered_signal)
+plt.title('Signal filtré par Wiener')
+plt.show()
+
+
 plt.figure("plot #1")
 plt.clf()
 plt.plot(t, IllumFCT,"-", label=r"$v^{(0)}$")

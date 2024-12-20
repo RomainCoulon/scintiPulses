@@ -90,7 +90,7 @@ def cr_filter(v, tau, dt):
 def scintiPulses(Y, tN=1e-4, fS=500e6, tau1 = 100e-9, tau2 = 2000e-9, p_delayed = 0,
                                  lambda_ = 1e5, L = 1, C1 = 1, sigma_C1 = 0, I=-1,
                                  tauS = 1e-9,
-                                 afterPulses = False, rA = 1e-3, tauA = 5e-6, sigmaA = 1e-6,
+                                 afterPulses = False, pA = 1e-3, tauA = 5e-6, sigmaA = 1e-6,
                                  darkNoise=False, fD = 1e-4,
                                  electronicNoise=False, sigmaRMS = 0.01,
                                  pream = False, G1 = 1, tauRC = 10e-6,
@@ -116,6 +116,8 @@ def scintiPulses(Y, tN=1e-4, fS=500e6, tau1 = 100e-9, tau2 = 2000e-9, p_delayed 
         ratio of energy converted in delayed fluorescence. The default is 0.
     lambda_ : float, optional
         input count rate in s-1. The default is 1e5.
+    L : float, optional
+        scintillation light yield in keV-1
     C1 : float, optional
         capacitance of the phototube in elementary charge per volt unit (in 1.6e-19 F). The default is 1.
     sigma_C1 : float, optional
@@ -127,8 +129,8 @@ def scintiPulses(Y, tN=1e-4, fS=500e6, tau1 = 100e-9, tau2 = 2000e-9, p_delayed 
     
     afterPulses : boolean, optional
         add after-pulses. The default is False.
-    rA : float, optional
-        ratio of charge of after-pulses. The default is 1e-3.
+    pA : float, optional
+        The probability that a primary charge contributes to an interaction with a molecule of residual gas during its multiplication process. The default is 1e-3.
     tauA : float, optional
         mean delay of after-pulses in second. The default is 5e-6 s.
     sigmaA: float, optional
@@ -265,7 +267,8 @@ def scintiPulses(Y, tN=1e-4, fS=500e6, tau1 = 100e-9, tau2 = 2000e-9, p_delayed 
                 delta_A = truncnorm.rvs(a, b, loc=tauA, scale=sigmaA)
                 t_iAP = int(delta_A/timeStep)
                 if i+t_iAP<n :
-                    v2[i+t_iAP]+=np.random.poisson(rA*l)
+                    # v2[i+t_iAP]+=np.random.poisson(pA*l)
+                    v2[i+t_iAP]+=np.random.binomial(l, pA)
     
     # Thermoionic noise
     v3=v2.copy()
@@ -310,38 +313,39 @@ def scintiPulses(Y, tN=1e-4, fS=500e6, tau1 = 100e-9, tau2 = 2000e-9, p_delayed 
 
 # import tdcrpy as td
 # import matplotlib.pyplot as plt
-# Y = 50*np.ones(10) #td.TDCR_model_lib.readRecQuenchedEnergies()[0]
+# Y = 1*np.ones(1000) #td.TDCR_model_lib.readRecQuenchedEnergies()[0]
 
 # fS = 0.5e9
-# sigmaRMS = 0.1
-# tauS = 20e-9
+# sigmaRMS = 0.01
+# tauS = 10e-9
 # t, v0, v1, v2, v3, v4, v5, v6, v7, v8, y0, y1 = scintiPulses(Y, tN=20e-6,
-#                                   fS=fS, tau1 = 200e-9,
+#                                   fS=fS, tau1 = 25e-9,
 #                                   tau2 = 2000e-9, p_delayed = 0,
-#                                   lambda_ = 0.5e5, L = 1, C1 = 0.1, sigma_C1 = 0, I=-1,
+#                                   lambda_ = 1e7, L = 1, C1 = 1, sigma_C1 = 0, I=-1,
 #                                   tauS = tauS,
-#                                   electronicNoise=True, sigmaRMS = sigmaRMS,
-#                                   afterPulses = False, rA = 50e-3, tauA = 10e-6, sigmaA = 1e-7,
+#                                   electronicNoise=False, sigmaRMS = sigmaRMS,
+#                                   afterPulses = True, pA = 500e-3, tauA = 10e-6, sigmaA = 1e-7,
 #                                   digitization=True, fc = fS*0.4, R=14, Vs=2,
 #                                   darkNoise=True, fD = 10e-6,
 #                                   pream = False, G1=10, tauRC = 10e-6,
 #                                   ampli = False, G2=10, tauCR = 2e-6, nCR=1,
-#                                   returnPulse = False)
+#                                   returnPulse = True)
 
 # plt.figure("plot")
 # plt.clf()
-# plt.title("Illumination function")
+# plt.title("signal")
 # # plt.plot(t, v0,"-", label="illumation function")
-# plt.plot(t, y0,"-", label="Energy")
-# plt.plot(t, y1,"-", label="charges")
-# plt.plot(t, v1,"-", alpha=0.4, label="shot noise")
+# # plt.plot(t, y0,"-", label="Energy")
+# # plt.plot(t, y1,"-", label="charges")
+# # plt.plot(t, v1,"-", alpha=0.4, label="shot noise")
 # # plt.plot(t, v2,"-", alpha=0.4, label="after-pulses")
 # # plt.plot(t, v3,"-", alpha=0.4, label="dark noise")
 # # plt.plot(t, v4,"-", alpha=0.4, label="transimp")
-# # plt.plot(t, v5,"-", alpha=0.4, label="therm. noise")
+# plt.plot(t, v5,"-", alpha=0.4, label="therm. noise")
 # # plt.plot(t, v6,"-", alpha=0.4, label="preamp.")
 # # plt.plot(t, v8,"-", alpha=0.4, label="amp.")
 # # plt.xlim([0,5e-6])
-# plt.legend()
+# # plt.legend()
 # plt.xlabel(r"$t$ /s")
 # plt.ylabel(r"$v$ /V")
+# plt.show()
