@@ -33,10 +33,10 @@ def add_quantization_noise(v, coding_resolution_bits, full_scale_range):
     quantization_step_size = full_scale_range / num_levels
     
     # Generate noise uniformly distributed between -0.5 and 0.5 of the quantization step size
-    noise = np.random.uniform(-0.5, 0.5, size=len(v)) * quantization_step_size
+    # noise = np.random.uniform(-0.5, 0.5, size=len(v)) * quantization_step_size
     
     # Add the noise to the original signal
-    v_noisy = v + noise
+    v_noisy = np.round(v/quantization_step_size)*quantization_step_size
     
     return v_noisy
 
@@ -316,7 +316,7 @@ def scintiPulses(Y, tN=1e-4, fS=500e6, tau1 = 100e-9, tau2 = 2000e-9, p_delayed 
 # Y = 1*np.ones(1000) #td.TDCR_model_lib.readRecQuenchedEnergies()[0]
 
 # fS = 0.5e9
-# sigmaRMS = 0.01
+# sigmaRMS = 0.00
 # tauS = 10e-9
 # t, v0, v1, v2, v3, v4, v5, v6, v7, v8, y0, y1 = scintiPulses(Y, tN=20e-6,
 #                                   fS=fS, tau1 = 25e-9,
@@ -324,7 +324,7 @@ def scintiPulses(Y, tN=1e-4, fS=500e6, tau1 = 100e-9, tau2 = 2000e-9, p_delayed 
 #                                   lambda_ = 1e7, L = 1, C1 = 1, sigma_C1 = 0, I=-1,
 #                                   tauS = tauS,
 #                                   electronicNoise=False, sigmaRMS = sigmaRMS,
-#                                   afterPulses = True, pA = 500e-3, tauA = 10e-6, sigmaA = 1e-7,
+#                                   afterPulses = False, pA = 500e-3, tauA = 10e-6, sigmaA = 1e-7,
 #                                   digitization=True, fc = fS*0.4, R=14, Vs=2,
 #                                   darkNoise=True, fD = 10e-6,
 #                                   pream = False, G1=10, tauRC = 10e-6,
@@ -341,11 +341,12 @@ def scintiPulses(Y, tN=1e-4, fS=500e6, tau1 = 100e-9, tau2 = 2000e-9, p_delayed 
 # # plt.plot(t, v2,"-", alpha=0.4, label="after-pulses")
 # # plt.plot(t, v3,"-", alpha=0.4, label="dark noise")
 # # plt.plot(t, v4,"-", alpha=0.4, label="transimp")
-# plt.plot(t, v5,"-", alpha=0.4, label="therm. noise")
+# # plt.plot(t, v5,"-", alpha=0.4, label="therm. noise")
 # # plt.plot(t, v6,"-", alpha=0.4, label="preamp.")
-# # plt.plot(t, v8,"-", alpha=0.4, label="amp.")
+# plt.plot(t, v8,"-", alpha=0.4, label="amp.")
 # # plt.xlim([0,5e-6])
 # # plt.legend()
 # plt.xlabel(r"$t$ /s")
 # plt.ylabel(r"$v$ /V")
+# plt.savefig("figure_0.svg")
 # plt.show()

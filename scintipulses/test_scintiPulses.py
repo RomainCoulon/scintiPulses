@@ -139,8 +139,9 @@ ax2.plot(t, v, '-', alpha=0.7, label=r"$v^{(8)}$", color='r')
 ax2.set_ylabel(r"$v$ /V", color='r')
 ax2.tick_params(axis='y', labelcolor='r')
 # Add legends
-xlim([0.000001, 0.0001])
+plt.xlim([0.000001, 0.0001])
 fig.legend(loc="upper right", bbox_to_anchor=(1,1), bbox_transform=ax1.transAxes)
+# plt.savefig("figure_0.svg")
 plt.show()
 
 # plt.figure("plot")
