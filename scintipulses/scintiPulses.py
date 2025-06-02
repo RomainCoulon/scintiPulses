@@ -230,6 +230,8 @@ def scintiPulses(Y, tN=1e-4, fS=500e6, tau1 = 100e-9, tau2 = 2000e-9, p_delayed 
     for i, ti in enumerate(arrival_times):
         IllumFCT0 = (1-p_delayed)*(Nphe[i]/tau1) * np.exp(-t/tau1)+p_delayed*(Nphe[i]/tau2) * np.exp(-t/tau2) # Exponential law x the nb of PHE
         IllumFCT0 *= timeStep
+        IllumFCT0 *= Nphe[i]/sum(IllumFCT0)
+        # print(sum(IllumFCT0), Nphe[i])
         # cumCharge = np.cumsum(IllumFCT0)
         flag0 = int(ti[0]/timeStep)
         y0[flag0] += Y[i]
@@ -256,7 +258,7 @@ def scintiPulses(Y, tN=1e-4, fS=500e6, tau1 = 100e-9, tau2 = 2000e-9, p_delayed 
             # v1[i]+=sum(vi)
             v1[i]+=ne
             # print("here",i, l, v1[i])
-        
+
     # After-pulses
     v2=v1.copy()
     if afterPulses:
@@ -313,28 +315,35 @@ def scintiPulses(Y, tN=1e-4, fS=500e6, tau1 = 100e-9, tau2 = 2000e-9, p_delayed 
 
 # import tdcrpy as td
 # import matplotlib.pyplot as plt
-# Y = 1*np.ones(1000) #td.TDCR_model_lib.readRecQuenchedEnergies()[0]
+# Y = 100*np.ones(1000) #td.TDCR_model_lib.readRecQuenchedEnergies()[0]
 
-# fS = 0.5e9
+# fS = 1e8
 # sigmaRMS = 0.00
 # tauS = 10e-9
-# t, v0, v1, v2, v3, v4, v5, v6, v7, v8, y0, y1 = scintiPulses(Y, tN=20e-6,
+# Niter=1000
+# v1sum = []
+# for i in range(Niter):
+#     t, v0, v1, v2, v3, v4, v5, v6, v7, v8, y0, y1 = scintiPulses(Y, tN=20e-6,
 #                                   fS=fS, tau1 = 25e-9,
 #                                   tau2 = 2000e-9, p_delayed = 0,
 #                                   lambda_ = 1e7, L = 1, C1 = 1, sigma_C1 = 0, I=-1,
 #                                   tauS = tauS,
 #                                   electronicNoise=False, sigmaRMS = sigmaRMS,
 #                                   afterPulses = False, pA = 500e-3, tauA = 10e-6, sigmaA = 1e-7,
-#                                   digitization=True, fc = fS*0.4, R=14, Vs=2,
-#                                   darkNoise=True, fD = 10e-6,
+#                                   digitization=False, fc = fS*0.4, R=14, Vs=2,
+#                                   darkNoise=False, fD = 10e-6,
 #                                   pream = False, G1=10, tauRC = 10e-6,
 #                                   ampli = False, G2=10, tauCR = 2e-6, nCR=1,
 #                                   returnPulse = True)
+#     v1sum.append(sum(v1))
+
+# print(np.mean(v1sum), np.std(v1sum))
+
 
 # plt.figure("plot")
 # plt.clf()
 # plt.title("signal")
-# # plt.plot(t, v0,"-", label="illumation function")
+# plt.plot(t, v0,"-", label="illumation function")
 # # plt.plot(t, y0,"-", label="Energy")
 # # plt.plot(t, y1,"-", label="charges")
 # # plt.plot(t, v1,"-", alpha=0.4, label="shot noise")
@@ -343,7 +352,7 @@ def scintiPulses(Y, tN=1e-4, fS=500e6, tau1 = 100e-9, tau2 = 2000e-9, p_delayed 
 # # plt.plot(t, v4,"-", alpha=0.4, label="transimp")
 # # plt.plot(t, v5,"-", alpha=0.4, label="therm. noise")
 # # plt.plot(t, v6,"-", alpha=0.4, label="preamp.")
-# plt.plot(t, v8,"-", alpha=0.4, label="amp.")
+# #plt.plot(t, v8,"-", alpha=0.4, label="amp.")
 # # plt.xlim([0,5e-6])
 # # plt.legend()
 # plt.xlabel(r"$t$ /s")
