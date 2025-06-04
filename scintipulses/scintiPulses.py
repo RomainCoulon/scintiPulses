@@ -89,7 +89,7 @@ def cr_filter(v, tau, dt):
 
 def scintiPulses(Y, tN=1e-4, fS=500e6, tau1 = 100e-9, tau2 = 2000e-9, p_delayed = 0,
                                  lambda_ = 1e5, L = 1, C1 = 1, sigma_C1 = 0, I=-1,
-                                 tauS = 1e-9,
+                                 tauS = 1e-9, rendQ = 1,
                                  afterPulses = False, pA = 1e-3, tauA = 5e-6, sigmaA = 1e-6,
                                  darkNoise=False, fD = 1e-4,
                                  electronicNoise=False, sigmaRMS = 0.01,
@@ -126,6 +126,8 @@ def scintiPulses(Y, tN=1e-4, fS=500e6, tau1 = 100e-9, tau2 = 2000e-9, p_delayed 
         voltage invertor to display positive pulses. The default is -1.
     tauS : float, optional
         pulse width of single electron in s. The default is 1e-9.
+    rendQ : float, optional
+        quantum efficiency of the photon-to-charge conversion. The default is 1.
     
     afterPulses : boolean, optional
         add after-pulses. The default is False.
@@ -252,7 +254,8 @@ def scintiPulses(Y, tN=1e-4, fS=500e6, tau1 = 100e-9, tau2 = 2000e-9, p_delayed 
     v1=np.zeros(n)
     for i, l in enumerate(v0):
         # ne = int(l) + np.random.binomial(n=1, p=l-int(l))
-        ne = np.random.poisson(l)
+        nph = np.random.poisson(l)
+        ne = np.random.binomial(nph, rendQ)
         if ne>0:
             # vi = np.random.normal(se_pulseCharge,pulseSpread,ne)
             # v1[i]+=sum(vi)
