@@ -1,18 +1,25 @@
-# ScintiPulses
+# scintiPulses
 
-**ScintiPulses** is a Python package for simulating signals from scintillation detectors. This tool allows for the simulation of photoelectric pulses, quantum shot noise, after-pulses, thermoionic noise, and various signal processing effects including digitization, pre-amplification, and fast amplification.
+**Simulate scintillation detector signals with photodetector effects, noise sources, and digitization modeling.**
+
+`scintiPulses` is a Python package that provides high-fidelity simulation of photodetector outputs from scintillation detectors. It allows modeling of physical, electronic, and digitization processes, including quantum noise, after-pulses, dark noise, preamplification, amplification, and ADC digitization.
+
+---
 
 ## Features
 
-- Simulates light pulses emitted by scintillation detectors based on the energy of detected particles.
-- Incorporates various noise sources like electronic noise, dark noise, and after-pulses.
-- Models signal processing elements such as pre-amplifiers and amplifiers.
-- Includes an option for signal digitization and anti-aliasing filtering.
-- Allows customization of various physical parameters to simulate specific detector behavior.
+- Simulates realistic pulse shapes from energy depositions in scintillation materials
+- Models time-dependent fluorescence (prompt + delayed components)
+- Quantum shot noise and after-pulse modeling
+- Thermionic (dark) noise and Johnson-Nyquist noise
+- RC and CR analog filtering stages (preamplifier & fast amplifier)
+- Digitization including low-pass filtering, quantization, and saturation
+
+---
 
 ## Installation
 
-You can install **ScintiPulses** using `pip`. Run the following command:
+Install via pip:
 
 ```bash
 pip install scintiPulses
