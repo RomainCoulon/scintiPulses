@@ -1,6 +1,6 @@
 # scintiPulses
 
-![scintiPulses logo](scintiPulses_logo.png)
+![scintiPulses logo](scintiPulses_logo.jpg)
 
 **Simulate scintillation detector signals with photodetector effects, noise sources, and digitization modeling.**
 
