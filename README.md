@@ -103,20 +103,12 @@ plt.show()
 
 ## ⚙️ Outputs:
 
-v0 - Idealized light emission
-
-v1 - Shot noise from quantized photons
-
-v2 - After-pulses added
-
-v3 - Thermoionic dark noise
-
-v4 - PMT voltage signal
-
-v5 - Thermal noise added
-
-v6 - Post-RC filter (preamp)
-
-v7 - Post-CR filter (fast amplifier)
-
-v8 - Final digitized signal
+- 📈 v0 - Idealized light emission
+- 📈 v1 - Shot noise from quantized photons
+- 📈 v2 - After-pulses added (Optional)
+- 📈 v3 - Thermoionic dark noise (Optional)
+- 📈 v4 - PMT voltage signal
+- 📈 v5 - Thermal noise added (Optional)
+- 📈 v6 - Post-RC filter (preamp) (Optional)
+- 📈 v7 - Post-CR filter (fast amplifier) (Optional)
+- 📈 v8 - Final digitized signal (Optional)
