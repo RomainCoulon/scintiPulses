@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 import codecs
 import os
 
-VERSION = "1.17"
+VERSION = "1.18"
 
 DESCRIPTION = "scintiPulses"
 
@@ -25,7 +25,7 @@ setup(
     python_requires='>=3.11',
     keywords = ["Python","scintillation","quantum illumination function","particle physics", "signal", "simulation"],
     classifiers=[
-        "Development Status :: Stable",
+        "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: MIT License",
         "Natural Language :: English",
