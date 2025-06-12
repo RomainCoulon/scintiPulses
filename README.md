@@ -34,13 +34,13 @@ pip install scintiPulses
 ```python
 import numpy as np
 import matplotlib.pyplot as plt
-from scintiPulses import scintiPulses
+import scintipulses.scintiPulses as sp
 
 # Sample energy deposition (in keV)
 Y = 100 * np.ones(1000)
 
 # Run simulation
-t, v0, v1, v2, v3, v4, v5, v6, v7, v8, y0, y1 = scintiPulses(
+t, v0, v1, v2, v3, v4, v5, v6, v7, v8, y0, y1 = sp.scintiPulses(
     Y,
     tN=20e-6,
     arrival_times=False,
@@ -79,36 +79,49 @@ plt.show()
 
 | Parameter         | Type        | Default Value | Description                                                  |
 |------------------|-------------|----------------|--------------------------------------------------------------|
-| `Y`              | array-like  | None           | Sample energy deposition (in keV)                            |
-| `tN`             | float       | 20e-6          | Total simulation time (in seconds)                           |
-| `arrival_times`  | bool        | False          | Flag to indicate if arrival times are provided               |
+| `Y`              | array-like  | None           | Samples of deposited energy (in keV)                         |
+| `tN`             | float       | 20e-6          | Total duration of the simulated signal (in seconds)          |
+| `arrival_times`  | bool  (or)  | False          | Flag to indicate if arrival times are provided               |
+| `arrival_times`  | array-like  |                | List of arrival times (in seconds)                           |
+| `lambda_`        | float       | 1e5            | Rate parameter for Poisson process (in s<sup>-1</sup>)       |
 | `fS`             | float       | 1e8            | Sampling frequency (in Hz)                                   |
 | `tau1`           | float       | 250e-9         | Decay time constant for prompt component (in seconds)        |
 | `tau2`           | float       | 2000e-9        | Decay time constant for delayed component (in seconds)       |
-| `p_delayed`      | float       | 0              | Probability of delayed component                             |
-| `lambda_`        | float       | 1e6            | Rate parameter for Poisson process (in Hz)                   |
-| `L`              | float       | 1              | Inductance (in Henry)                                        |
-| `C1`             | float       | 1              | Capacitance (in Farad)                                       |
-| `sigma_C1`       | float       | 0              | Standard deviation of capacitance (in Farad)                 |
-| `I`              | float       | -1             | Current (in Ampere)                                          |
-| `tauS`           | float       | 10e-9          | Decay time constant for scintillation (in seconds)           |
+| `p_delayed`      | float       | 0              | Probability of the delayed component                         |
+| `rendQ`          | float       | 1              | Quantum efficiency of the photon-to-charge conversion        |
+| `L`              | float       | 1              | Scintillation light yield (in keV<sup>-1</sup>)              |
+| `C1`             | float       | 1              | Capacitance (in $1.6\times^{-19}$ Farad)                     |
+| `sigma_C1`       | float       | 0              | Standard deviation of capacitance (in $1.6\times^{-19}$Farad)|
+| `I`              | float       | -1             | Voltage invertor                                             |
+| `tauS`           | float       | 10e-9          | Spreading time of charge bunch (in seconds)                  |
 | `electronicNoise`| bool        | False          | Flag to indicate if electronic noise is included             |
-| `sigmaRMS`       | float       | 0.00           | RMS value of electronic noise                                |
+| `sigmaRMS`       | float       | 0.00           | RMS value of electronic noise (in V)                         |
 | `afterPulses`    | bool        | False          | Flag to indicate if after-pulses are included                |
 | `pA`             | float       | 0.5            | Probability of after-pulse occurrence                        |
-| `tauA`           | float       | 10e-6          | Decay time constant for after-pulse (in seconds)             |
-| `sigmaA`         | float       | 1e-7           | Standard deviation of after-pulse (in seconds)               |
+| `tauA`           | float       | 10e-6          | Mean delay time of after-pulses (in seconds)                 |
+| `sigmaA`         | float       | 1e-7           | Standard deviation of the delay time (in seconds)            |
+| `darkNoise`      | boolean     | False          | Flag to indicate if dark noise is included                   |
+| `fD`             | float       | 1e4            | Rate of the thermoionic noise (in s<sup>-1</sup>)            |
+| `pream`          | boolean     | False          | Flag to indicate if a preamplifier in included               |
+| `G1`             | float       | 1              | Voltage gain of the preamplifier                             |
+| `tauRC`          | float       | 10e-6          | Time period of the preamplifier (in s)                       | 
+| `ampli`          | boolean     | False          | Flag to indicate if a fast amplifier in included             |
+| `G2`             | float       | 1              | Voltage gain of the fast amplifier                           |
+| `tauCR`          | float       | 2e-6           | Time period of the fast amplifier (in s)                     |
+| `nCR`            | integer     | 1              | Order of the CR filter of the fast amplifier                 |
 | `digitization`   | bool        | False          | Flag to indicate if digitization is included                 |
-| `fc`             | float       | 4e7            | Cut-off frequency for low-pass filter (in Hz)                |
+| `fc`             | float       | 4e7            | Cut-off frequency of the anti-aliasing filter (in Hz)        |
+|  `R`             | integer     | 14             | Resoltion of the ADC (in bit)                                |
+|  `Vs`            | float       | 2              | Voltage dynamic range (in V)                                 |
 
 ## ⚙️ Outputs:
 
-- 📈 v0 - Idealized light emission
-- 📈 v1 - Shot noise from quantized photons
+- 📈 v0 - Idealized scintillation signal
+- 📈 v1 - Shot noise from quantized photons added
 - 📈 v2 - After-pulses added (Optional)
-- 📈 v3 - Thermoionic dark noise (Optional)
+- 📈 v3 - Thermoionic dark noise added (Optional)
 - 📈 v4 - PMT voltage signal
 - 📈 v5 - Thermal noise added (Optional)
-- 📈 v6 - Post-RC filter (preamp) (Optional)
-- 📈 v7 - Post-CR filter (fast amplifier) (Optional)
-- 📈 v8 - Final digitized signal (Optional)
+- 📈 v6 - Post-RC filter added (preamp) (Optional)
+- 📈 v7 - Post-CR<sup>n</sup> filter added (fast amplifier) (Optional)
+- 📈 v8 - Digitization added (Optional)
