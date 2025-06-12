@@ -4,7 +4,9 @@
 
 **Simulate scintillation detector signals with photodetector effects, noise sources, and digitization modeling.**
 
-`scintiPulses` is a Python package for simulating high-fidelity photodetector outputs from scintillation detectors. It models the full signal chain from energy deposition to digitized output, incorporating physical, electronic, and digitization effects.
+`scintiPulses` is a Python package designed to generate realistic photodetector signals from scintillation detectors by modeling the entire signal chain—from energy deposition to digitized output. It incorporates key photochemical processes (scintillation light emission, photodetector response), electronic effects (amplification, noise, shaping), and digitization artifacts (sampling, quantization).
+
+The package is compatible with Monte Carlo simulation frameworks (e.g., Geant4, MCNP, FLUKA), accepting deposited energy and timestamp data to produce high-fidelity pulse waveforms.
 
 ---
 
@@ -116,12 +118,15 @@ plt.show()
 
 ## ⚙️ Outputs:
 
-- 📈 v0 - Idealized scintillation signal
-- 📈 v1 - Shot noise from quantized photons added
-- 📈 v2 - After-pulses added (Optional)
-- 📈 v3 - Thermoionic dark noise added (Optional)
-- 📈 v4 - PMT voltage signal
-- 📈 v5 - Thermal noise added (Optional)
-- 📈 v6 - Post-RC filter added (preamp) (Optional)
-- 📈 v7 - Post-CR<sup>n</sup> filter added (fast amplifier) (Optional)
-- 📈 v8 - Digitization added (Optional)
+- ⏱️ t - Time base vector (in s).
+- 📈 v0 - Idealized scintillation signal (in e)
+- 📈 v1 - Shot noise from quantized photons added (in e)
+- 📈 v2 - After-pulses added (Optional) (in e)
+- 📈 v3 - Thermoionic dark noise added (Optional) (in e)
+- 📈 v4 - PMT voltage signal (in V)
+- 📈 v5 - Thermal noise added (Optional) (in V)
+- 📈 v6 - Post-RC filter added (preamp) (Optional) (in V)
+- 📈 v7 - Post-CR<sup>n</sup> filter added (fast amplifier) (Optional) (in V)
+- 📈 v8 - Digitization added (Optional) (in V)
+- 🔬 y0 - Dirac brush of deposited energy (in keV).
+- 🔬 y1 : Dirac brush of mean charges (in e).
