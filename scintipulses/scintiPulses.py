@@ -87,17 +87,16 @@ def cr_filter(v, tau, dt):
 
     return v_out
 
-def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6,
-                                 tau1 = 100e-9, tau2 = 2000e-9, p_delayed = 0,
+def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
+                                 tau1 = 100e-9, tau2 = 2000e-9, p_delayed = 0, F=1,
                                  lambda_ = 1e5, L = 1, C1 = 1, sigma_C1 = 0, I=-1,
                                  tauS = 1e-9, rendQ = 1,
                                  afterPulses = False, pA = 1e-3, tauA = 5e-6, sigmaA = 1e-6,
                                  darkNoise=False, fD = 1e-4,
                                  electronicNoise=False, sigmaRMS = 0.01,
-                                 pream = False, G1 = 1, tauRC = 10e-6,
+                                 pream = False, G1 = 1, tauRC = 1000e-6,
                                  ampli = False, G2 = 1, tauCR = 2e-6, nCR=1,                                 
-                                 digitization=False, fc = 2e8, R=14, Vs=2,
-                                 returnPulse = False):
+                                 digitization=False, fc = 2e8, R=14, Vs=2):
     """
     This function simulate a signal from a scintillation detector.
 
@@ -117,6 +116,8 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6,
         decay period of the delayed fluorescence. The default is 2000e-9.
     p_delayed : float, optional
         ratio of energy converted in delayed fluorescence. The default is 0.
+    F : float, optional
+        Fano factor. The default is 1.
     lambda_ : float, optional
         input count rate in s-1. The default is 1e5.
     L : float, optional
@@ -131,6 +132,8 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6,
         pulse width of single electron in s. The default is 1e-9.
     rendQ : float, optional
         quantum efficiency of the photon-to-charge conversion. The default is 1.
+    nChannel : integer, optional
+        number of shared photodetectors read the scintillation signal. The default is 1.
     afterPulses : boolean, optional
         add after-pulses. The default is False.
     pA : float, optional
@@ -174,9 +177,6 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6,
         resoltion of the ADC in bit. The default is 14 bits.
     Vs:
         voltage dynamic range (+/-) in volt. The defaut is 2 V.
-    
-    returnPulse : boolean, optional
-        to return a single pulse for observation. The default is False.
 
     Returns
     -------
@@ -232,64 +232,115 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6,
     t = np.arange(0,tN,timeStep)
     n = len(t)
     Y = np.asarray(Y)
-    Nphe = Y*L                      # nb de photoelectron / decay
-    v0=np.zeros(n); y0 =np.zeros(n); y1 = np.zeros(n); v1=np.zeros(n)
+    Nph = Y*L                      # nb de photon / decay
+    v0=np.zeros(n); y0 =np.zeros(n); y1 = np.zeros(n); v1=np.zeros((nChannel, n))
     
     ###########################################################
     ## SIMULATION OF THE DETERMINISTIC ILLUMINATION FUNCTION ##
     ###########################################################
     for i, ti in enumerate(arrival_times):
-        IllumFCT0 = (1-p_delayed)*(Nphe[i]/tau1) * np.exp(-t/tau1)+p_delayed*(Nphe[i]/tau2) * np.exp(-t/tau2) # Exponential law x the nb of PHE
+        IllumFCT0 = (1-p_delayed)*(Nph[i]/tau1) * np.exp(-t/tau1)+p_delayed*(Nph[i]/tau2) * np.exp(-t/tau2) # Exponential law x the nb of PHE
         IllumFCT0 *= timeStep
-        IllumFCT0 *= Nphe[i]/sum(IllumFCT0)
+        IllumFCT0 *= Nph[i]/sum(IllumFCT0)
         flag0 = int(ti/timeStep)
         y0[flag0] += Y[i]
-        if Nphe[i] > 0:
-            if returnPulse:
-                v0=IllumFCT0
-                #v0=np.concatenate((np.zeros(len(IllumFCT0)),IllumFCT0))
-                #t = np.arange(-tN,tN,timeStep)
-                #n = len(t)
-                break
-            else:
-                flag = int(ti/timeStep)
-                v0 += np.concatenate((np.zeros(flag),IllumFCT0[:n-flag]))
-                y1[flag] += Nphe[i]
+        if Nph[i] > 0:
+            flag = int(ti/timeStep)
+            v0 += np.concatenate((np.zeros(flag),IllumFCT0[:n-flag]))
+            y1[flag] += Nph[i]
     
     #####################################################
     ## SIMULATION OF THE QUANTUM ILLUMINATION FUNCTION ##
     #####################################################
-    for i, l in enumerate(v0):
-        nph = np.random.poisson(l)
-        ne = np.random.binomial(nph, rendQ)
-        if ne>0:
-            v1[i]+=ne
+    n_tp = 1-np.exp(-1/(fS*tau1)) # prompt transition probability
+    n_td = 1-np.exp(-1/(fS*tau2)) # delayed transition probability    
+    for k, ti in enumerate(arrival_times):
+        mean_n_s_prompt = (1-p_delayed)*Nph[k] # mean number of exited states leading to prompt photons
+        mean_n_s_delayed = p_delayed*Nph[k]    # mean number of exited states leading to delayed photons
+        
+        if F==1:
+            n_s_prompt = np.random.poisson(mean_n_s_prompt)   # number of exited states leading to prompt photons
+            n_s_delayed = np.random.poisson(mean_n_s_delayed) # number of exited states leading to delayed photons
+        else:
+            n_s_prompt = truncnorm.rvs((0 - mean_n_s_prompt) / F*mean_n_s_prompt, np.inf, loc=mean_n_s_prompt, scale=F*mean_n_s_prompt)   # number of exited states leading to prompt photons
+            n_s_delayed = truncnorm.rvs((0 - mean_n_s_delayed) / F*mean_n_s_delayed, np.inf, loc=mean_n_s_delayed, scale=F*mean_n_s_delayed) # number of exited states leading to delayed photons
+        
+        i = 0; n_e_prompt=[]
+        while n_s_prompt>0 and ti+i*timeStep<t[-1]:            
+            n_p_prompt = np.random.binomial(n_s_prompt,n_tp)         # number of prompt transitions during the interval
+            # if nChannel>1:
+            n_p_prompt_z = np.random.multinomial(n_p_prompt,np.ones(nChannel)/nChannel)  # shared number of prompt transitions during the interval
+            n_e_prompt.append(np.random.binomial(n_p_prompt_z,rendQ))  # number of measured charges during the interval
+            n_s_prompt -= n_p_prompt                                 # update of the number of exited states leading to prompt photons
+            i += 1                                                   # move to next interval
+        
+        l = 0; n_e_delayed=[]
+        while n_s_delayed>0 and ti+i*timeStep<t[-1]:
+            n_p_delayed = np.random.binomial(n_s_delayed,n_td)         # number of delayed transitions during the interval
+            n_p_delayed_z = np.random.multinomial(n_p_delayed,np.ones(nChannel)/nChannel)  # shared number of delayed transitions during the interval
+            n_e_delayed.append(np.random.binomial(n_p_delayed_z,rendQ))  # number of measured charges during the interval
+            n_s_delayed -= n_p_delayed                                 # update of the number of exited states leading to delayed photons
+            l += 1                                                     # move to next interval   
+            
+        if sum(IllumFCT0) > 0:
+            flag = int(ti/timeStep)
+            for z in range(nChannel):
+                n_e_prompt = np.asarray(n_e_prompt)
+                n_e_delayed = np.asarray(n_e_delayed)
+                if len(n_e_prompt)>0:
+                    if n < flag+len(n_e_prompt[:,z]):
+                        cut = flag+len(n_e_prompt[:,z])-n
+                        v1[z,flag:flag+len(n_e_prompt[0:n-cut,z])] += n_e_prompt[0:-cut,z]
+                    else:
+                        v1[z,flag:flag+len(n_e_prompt[:,z])] += n_e_prompt[:,z]
+                
+                if len(n_e_delayed)>0:
+                    if n < flag+len(n_e_delayed[:,z]):
+                        cut = flag+len(n_e_delayed[:,z])-n
+                        v1[z,flag:flag+len(n_e_delayed[0:n-cut,z])] += n_e_delayed[0:-cut,z]
+                    else:
+                        v1[z,flag:flag+len(n_e_delayed[:,z])] += n_e_delayed[:,z]
+                            
+    # fast version (deprecated)
+    # for i, l in enumerate(v0):
+    #     nph = np.random.poisson(l)
+    #     if nChannel == 1:
+    #         ne = np.random.binomial(nph, rendQ)
+    #         if ne>0:
+    #             v1[(nChannel-1,i)]+=ne
+    #     else:
+    #         pVec = [1/nChannel for j in range(nChannel)]
+    #         ne = np.random.multinomial(nph, pVec)
+    #         for j in range(nChannel):
+    #             v1[(j,i)]+=np.random.binomial(ne[j], rendQ)
             
     ####################################
     ## SIMUALTION OF THE AFTER-PULSES ##
     ####################################
     v2=v1.copy()
     if afterPulses:
-        for i, l in enumerate(v1):
-            if l>0:
-                a, b = (0 -tauA) / sigmaA, ((n-i)*timeStep - tauA) / sigmaA
-                delta_A = truncnorm.rvs(a, b, loc=tauA, scale=sigmaA)
-                t_iAP = int(delta_A/timeStep)
-                if i+t_iAP<n :
-                    v2[i+t_iAP]+=np.random.binomial(l, pA)
+        for j in range(nChannel):
+            for i, l in enumerate(v1[j]):
+                if l>0:
+                    a, b = (0 -tauA) / sigmaA, ((n-i)*timeStep - tauA) / sigmaA
+                    delta_A = truncnorm.rvs(a, b, loc=tauA, scale=sigmaA)
+                    t_iAP = int(delta_A/timeStep)
+                    if i+t_iAP<n :
+                        v2[(j, i+t_iAP)]+=np.random.binomial(l, pA)
     
     #########################################
     ## SIMULATION OF THE THERMOIONIC NOISE ##
     #########################################
     v3=v2.copy()
     if darkNoise:
-        arrival_times2 = [0]
-        while arrival_times2[-1]<tN:
-            arrival_times2.append(arrival_times2[-1] + np.random.exponential(scale=1/fD, size=1))
-        arrival_times2=arrival_times2[1:-1]
-        for i, ti in enumerate(arrival_times2):
-            flag = int(ti[0]/timeStep)
-            v3[flag]+=1
+        for j in range(nChannel):
+            arrival_times2 = [0]
+            while arrival_times2[-1]<tN:
+                arrival_times2.append(arrival_times2[-1] + np.random.exponential(scale=1/fD, size=1))
+            arrival_times2=arrival_times2[1:-1]
+            for i, ti in enumerate(arrival_times2):
+                flag = int(ti/timeStep)
+                v3[(j,flag)]+=1
     
     ########################
     ## VOLTAGE CONVERSION ##
@@ -301,13 +352,17 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6,
     ## SIMULATION OF THE THERMAL NOISE ##
     #####################################
     v5=v4.copy()
-    if electronicNoise: v5+=sigmaRMS*np.random.normal(0,1,n)
+    if electronicNoise:
+        for z in range(nChannel):
+            v5[z]+=sigmaRMS*np.random.normal(0,1,n)
     
     ##########################################
     ## SIMULATION OF THE PREAMPLIFIER STAGE ##
     ##########################################
     v6=v5.copy()
-    if pream: v6 = G1*rc_filter(v5, tauRC, timeStep)
+    if pream:
+        for z in range(nChannel):
+            v6[z] = G1*rc_filter(v5[z], tauRC, timeStep)
     
     ###########################################
     ## SIMULATION OF THE AMPLIFICATION STAGE ##
@@ -315,66 +370,91 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6,
     v7=v6.copy()
     if ampli:
         for i in range(nCR):
-            v7 = G2*cr_filter(v6, tauCR, timeStep)
+            for z in range(nChannel):
+                v7[z] = G2*cr_filter(v6[z], tauCR, timeStep)
        
     #################################
     ## SIMULATION OF THE DIGITIZER ##
     #################################
     v8=v7.copy()
     if digitization:
-        v8 = low_pass_filter(v7, timeStep, fc)
-        v8 = add_quantization_noise(v8, R, Vs)
-        v8 = saturate(v8, Vs*2)
+        for z in range(nChannel):
+            v8[z] = low_pass_filter(v7[z], timeStep, fc)
+            v8[z] = add_quantization_noise(v8[z], R, Vs)
+            v8[z] = saturate(v8[z], Vs*2)
+    
+    if nChannel==1:
+        v1=v1[0]; v2=v2[0]; v3=v3[0]; v4=v4[0]; v5=v5[0]; v6=v6[0]; v7=v7[0]; v8=v8[0]
     
     return t, v0, v1, v2, v3, v4, v5, v6, v7, v8, y0, y1
 
 
 
-#import tdcrpy as td
+# # import tdcrpy as td
 # import matplotlib.pyplot as plt
 # Y = 100*np.ones(1000) #td.TDCR_model_lib.readRecQuenchedEnergies()[0]
 
-# fS = 1e8
-# sigmaRMS = 0.00
+# fS = 1e9
+# sigmaRMS = 0.01
 # tauS = 10e-9
 # Niter=1
 # v1sum = []
 # arrt = [1e-5]
+# nc = 3
 # for i in range(Niter):
-#     t, v0, v1, v2, v3, v4, v5, v6, v7, v8, y0, y1 = scintiPulses(Y, tN=20e-6,
-#                                   arrival_times = False,
-#                                   fS=fS, tau1 = 250e-9,
-#                                   tau2 = 2000e-9, p_delayed = 0,
+#     t, v0, v1, v2, v3, v4, v5, v6, v7, v8, y0, y1 = scintiPulses(Y, tN=50e-6,
+#                                   arrival_times = arrt, nChannel=nc,
+#                                   fS=fS, tau1 = 250e-9, F=1,
+#                                   tau2 = 2000e-9, p_delayed = 0.5,
 #                                   lambda_ = 1e6, L = 1, C1 = 1, sigma_C1 = 0, I=-1,
 #                                   tauS = tauS,
 #                                   electronicNoise=False, sigmaRMS = sigmaRMS,
-#                                   afterPulses = False, pA = 500e-3, tauA = 10e-6, sigmaA = 1e-7,
-#                                     digitization=False, fc = fS*0.4, R=14, Vs=2,
-#                                   darkNoise=False, fD = 10e-6,
-#                                   pream = False, G1=10, tauRC = 10e-6,
-#                                   ampli = False, G2=10, tauCR = 2e-6, nCR=1,
-#                                   returnPulse = True)
+#                                   afterPulses = False, pA = 50e-3, tauA = 20e-6, sigmaA = 1e-7,
+#                                   digitization=True, fc = fS*0.4, R=8, Vs=2,
+#                                   darkNoise=False, fD = 10e6,
+#                                   pream = True, G1=2, tauRC = 10e-6,
+#                                   ampli = True, G2=2, tauCR = 0.5e-6, nCR=1)
 #     v1sum.append(sum(v1))
 
 # print(np.mean(v1sum), np.std(v1sum))
 
 
-# plt.figure("plot")
-# plt.clf()
-# plt.title("signal")
-# plt.plot(t, v0,"-", label="illumation function")
-# # plt.plot(t, y0,"-", label="Energy")
-# # plt.plot(t, y1,"-", label="charges")
-# plt.plot(t, v1,"-", alpha=0.4, label="shot noise")
-# # plt.plot(t, v2,"-", alpha=0.4, label="after-pulses")
-# # plt.plot(t, v3,"-", alpha=0.4, label="dark noise")
-# # plt.plot(t, v4,"-", alpha=0.4, label="transimp")
-# # plt.plot(t, v5,"-", alpha=0.4, label="therm. noise")
-# # plt.plot(t, v6,"-", alpha=0.4, label="preamp.")
-# #plt.plot(t, v8,"-", alpha=0.4, label="amp.")
-# # plt.xlim([0,5e-6])
-# # plt.legend()
-# plt.xlabel(r"$t$ /s")
-# plt.ylabel(r"$v$ /V")
-# plt.savefig("figure_0.svg")
-# plt.show()
+# fig, axes = plt.subplots(nrows=nc, ncols=1, figsize=(8, 2 * nc), sharex=True)
+# fig.suptitle("Signal per Channel")
+
+# # Ensure axes is iterable even if nc == 1
+# if nc == 1:
+#     # plt.plot(t, v0, "-", alpha=0.4, label="illum fct")
+#     # plt.plot(t, v1, "-", alpha=0.6, label="shot noise")
+#     # plt.plot(t, v2,"-", alpha=0.4, label="after-pulses")
+#     # plt.plot(t, v3,"-", alpha=0.4, label="dark noise")
+#     # plt.plot(t, v4,"-", alpha=0.4, label="transimp")
+#     # plt.plot(t, v5,"-", alpha=0.4, label="therm. noise")
+#     plt.plot(t, v6,"-", alpha=0.4, label="preamp.")
+#     plt.plot(t, v7,"-", alpha=0.4, label="amp.")
+#     plt.plot(t, v8,"-", alpha=0.4, label="dig.")
+#     plt.ylabel(r"$v$ /V")
+#     plt.legend(loc="upper right")
+#     plt.grid(True)
+#     plt.xlabel(r"$t$ /s")  # Set x-axis label only on last plot
+#     plt.savefig("figure_0.svg")
+#     plt.show()
+# else:
+#     for i in range(nc):
+#         ax = axes[i]
+#         # ax.plot(t, v0, "-", alpha=0.4, label="illum fct")
+#         # ax.plot(t, v1[i], "-", alpha=0.6, label=f"shot noise - channel {i}")
+#         # ax.plot(t, v2[i], "-", alpha=0.6, label=f"after-pulses - channel {i}")
+#         # ax.plot(t, v3[i], "-", alpha=0.6, label=f"dark noise - channel {i}")
+#         # ax.plot(t, v4[i], "-", alpha=0.6, label=f"transimp - channel {i}")
+#         # ax.plot(t, v5[i], "-", alpha=0.6, label=f"therm. noise - channel {i}")
+#         ax.plot(t, v6[i], "-", alpha=0.6, label=f"preamp. - channel {i}")
+#         ax.plot(t, v7[i], "-", alpha=0.6, label=f"amp. - channel {i}")
+#         ax.plot(t, v8[i], "-", alpha=0.6, label=f"dig. - channel {i}")
+#         ax.set_ylabel(r"$v$ /V")
+#         ax.legend(loc="upper right")
+#         ax.grid(True)
+#     axes[-1].set_xlabel(r"$t$ /s")  # Set x-axis label only on last plot
+#     plt.tight_layout(rect=[0, 0, 1, 0.96])  # Leave space for suptitle
+#     plt.savefig("figure_0.svg")
+#     plt.show()

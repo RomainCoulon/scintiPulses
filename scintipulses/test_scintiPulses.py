@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 # enerVec = td.TDCR_model_lib.readRecQuenchedEnergies()[0] # energy vector of deposited quenched energies in keV
 enerVec = [10] 
-
+arrt = [4e-5] #♦ arrival time vector
 
 timeFrame = 100e-6                # duration of the sequence in s
 samplingRate = 500e6            # sampling rate of the digitizer is S/s
@@ -54,6 +54,7 @@ CRorder=1                       # order of the CR filter
 returnPulse = False              # to return one pulse
 
 t, v0, v1, v2, v3, v4, v5, v6, v7, v8, y0, y1 = sp.scintiPulses(enerVec, tN=timeFrame,
+                                  arrival_times=arrt,
                                   fS=samplingRate, tau1 = tau,
                                   tau2 = tau2, p_delayed = pdelayed,
                                   lambda_ = ICR, L = L, C1 = se_pulseCharge,
