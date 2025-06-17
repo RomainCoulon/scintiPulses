@@ -255,6 +255,9 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
     n_tp = 1-np.exp(-1/(fS*tau1)) # prompt transition probability
     n_td = 1-np.exp(-1/(fS*tau2)) # delayed transition probability    
     for k, ti in enumerate(arrival_times):
+        
+        flag = int(ti/timeStep)       # indice of the decay event
+                
         mean_n_s_prompt = (1-p_delayed)*Nph[k] # mean number of exited states leading to prompt photons
         mean_n_s_delayed = p_delayed*Nph[k]    # mean number of exited states leading to delayed photons
         
@@ -266,40 +269,49 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
             n_s_delayed = truncnorm.rvs((0 - mean_n_s_delayed) / F*mean_n_s_delayed, np.inf, loc=mean_n_s_delayed, scale=F*mean_n_s_delayed) # number of exited states leading to delayed photons
         
         i = 0; n_e_prompt=[]
-        while n_s_prompt>0 and ti+i*timeStep<t[-1]:            
+        while n_s_prompt>0 or ti+i*timeStep<t[-1]:            
             n_p_prompt = np.random.binomial(n_s_prompt,n_tp)         # number of prompt transitions during the interval
             # if nChannel>1:
-            n_p_prompt_z = np.random.multinomial(n_p_prompt,np.ones(nChannel)/nChannel)  # shared number of prompt transitions during the interval
-            n_e_prompt.append(np.random.binomial(n_p_prompt_z,rendQ))  # number of measured charges during the interval
+            n_p_prompt_z = np.random.multinomial(n_p_prompt, np.ones(nChannel)/nChannel)  # shared number of prompt transitions during the interval
+            n_e_prompt.append(np.random.binomial(n_p_prompt_z, rendQ))  # number of measured charges during the interval
             n_s_prompt -= n_p_prompt                                 # update of the number of exited states leading to prompt photons
             i += 1                                                   # move to next interval
         
         l = 0; n_e_delayed=[]
-        while n_s_delayed>0 and ti+i*timeStep<t[-1]:
-            n_p_delayed = np.random.binomial(n_s_delayed,n_td)         # number of delayed transitions during the interval
-            n_p_delayed_z = np.random.multinomial(n_p_delayed,np.ones(nChannel)/nChannel)  # shared number of delayed transitions during the interval
-            n_e_delayed.append(np.random.binomial(n_p_delayed_z,rendQ))  # number of measured charges during the interval
+        while n_s_delayed>0 or ti+i*timeStep<t[-1]:
+            n_p_delayed = np.random.binomial(n_s_delayed, n_td)         # number of delayed transitions during the interval
+            n_p_delayed_z = np.random.multinomial(n_p_delayed, np.ones(nChannel)/nChannel)  # shared number of delayed transitions during the interval
+            n_e_delayed.append(np.random.binomial(n_p_delayed_z, rendQ))  # number of measured charges during the interval
             n_s_delayed -= n_p_delayed                                 # update of the number of exited states leading to delayed photons
-            l += 1                                                     # move to next interval   
+            l += 1                                                     # move to next interval
             
-        if sum(IllumFCT0) > 0:
-            flag = int(ti/timeStep)
-            for z in range(nChannel):
-                n_e_prompt = np.asarray(n_e_prompt)
-                n_e_delayed = np.asarray(n_e_delayed)
-                if len(n_e_prompt)>0:
-                    if n < flag+len(n_e_prompt[:,z]):
-                        cut = flag+len(n_e_prompt[:,z])-n
-                        v1[z,flag:flag+len(n_e_prompt[0:n-cut,z])] += n_e_prompt[0:-cut,z]
-                    else:
-                        v1[z,flag:flag+len(n_e_prompt[:,z])] += n_e_prompt[:,z]
-                
-                if len(n_e_delayed)>0:
-                    if n < flag+len(n_e_delayed[:,z]):
-                        cut = flag+len(n_e_delayed[:,z])-n
-                        v1[z,flag:flag+len(n_e_delayed[0:n-cut,z])] += n_e_delayed[0:-cut,z]
-                    else:
-                        v1[z,flag:flag+len(n_e_delayed[:,z])] += n_e_delayed[:,z]
+        # if sum(IllumFCT0) > 0: # if at least one charge
+        
+        for z in range(nChannel):     # for each channel
+            n_e_prompt = np.asarray(n_e_prompt)     # convert the frames in arrays
+            n_e_delayed = np.asarray(n_e_delayed)
+            
+            if len(n_e_prompt)>0:
+                if n < flag+len(n_e_prompt[:,z]):
+                    # cut = flag+len(n_e_prompt[:,z])-n
+                    cut = n - flag
+                    # v1[z,flag:flag+len(n_e_prompt[0:n-cut,z])] += n_e_prompt[0:-cut,z]
+                    v1[z,flag:n] += n_e_prompt[0:cut,z]
+                else:
+                    v1[z,flag:flag+len(n_e_prompt[:,z])] += n_e_prompt[:,z]
+            # else:
+            #     print("p",n_e_prompt)
+            
+            if len(n_e_delayed)>0:
+                if n < flag+len(n_e_delayed[:,z]):
+                    # cut = flag+len(n_e_delayed[:,z])-n
+                    cut = n - flag
+                    # v1[z,flag:flag+len(n_e_delayed[0:n-cut,z])] += n_e_delayed[0:-cut,z]
+                    v1[z,flag:n] += n_e_delayed[0:cut,z]
+                else:
+                    v1[z,flag:flag+len(n_e_delayed[:,z])] += n_e_delayed[:,z]
+            # else:
+            #     print("d", n_e_delayed)
                             
     # fast version (deprecated)
     # for i, l in enumerate(v0):
@@ -392,22 +404,22 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
 
 # # import tdcrpy as td
 # import matplotlib.pyplot as plt
-# Y = 100*np.ones(1000) #td.TDCR_model_lib.readRecQuenchedEnergies()[0]
+# Y = [10] #td.TDCR_model_lib.readRecQuenchedEnergies()[0]
 
 # fS = 1e9
 # sigmaRMS = 0.01
 # tauS = 10e-9
 # Niter=1
 # v1sum = []
-# arrt = [1e-5]
+# arrt = [1e-8, 2e-8]
 # nc = 3
 # for i in range(Niter):
-#     t, v0, v1, v2, v3, v4, v5, v6, v7, v8, y0, y1 = scintiPulses(Y, tN=50e-6,
+#     t, v0, v1, v2, v3, v4, v5, v6, v7, v8, y0, y1 = scintiPulses(Y, tN=1e-7,
 #                                   arrival_times = arrt, nChannel=nc,
-#                                   fS=fS, tau1 = 250e-9, F=1,
-#                                   tau2 = 2000e-9, p_delayed = 0.5,
-#                                   lambda_ = 1e6, L = 1, C1 = 1, sigma_C1 = 0, I=-1,
-#                                   tauS = tauS,
+#                                   fS=fS, tau1 = 5.44e-9, F=1,
+#                                   tau2 = 254.5e-9, p_delayed = 0.5,
+#                                   lambda_ = 1e6, L = 1.2, C1 = 1, sigma_C1 = 0, I=-1,
+#                                   tauS = tauS, rendQ=0.25,
 #                                   electronicNoise=False, sigmaRMS = sigmaRMS,
 #                                   afterPulses = False, pA = 50e-3, tauA = 20e-6, sigmaA = 1e-7,
 #                                   digitization=True, fc = fS*0.4, R=8, Vs=2,
@@ -442,15 +454,15 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
 # else:
 #     for i in range(nc):
 #         ax = axes[i]
-#         # ax.plot(t, v0, "-", alpha=0.4, label="illum fct")
-#         # ax.plot(t, v1[i], "-", alpha=0.6, label=f"shot noise - channel {i}")
+#         ax.plot(t, v0, "-", alpha=0.4, label="illum fct")
+#         ax.plot(t, v1[i], "-", alpha=0.6, label=f"shot noise - channel {i}")
 #         # ax.plot(t, v2[i], "-", alpha=0.6, label=f"after-pulses - channel {i}")
 #         # ax.plot(t, v3[i], "-", alpha=0.6, label=f"dark noise - channel {i}")
 #         # ax.plot(t, v4[i], "-", alpha=0.6, label=f"transimp - channel {i}")
 #         # ax.plot(t, v5[i], "-", alpha=0.6, label=f"therm. noise - channel {i}")
-#         ax.plot(t, v6[i], "-", alpha=0.6, label=f"preamp. - channel {i}")
-#         ax.plot(t, v7[i], "-", alpha=0.6, label=f"amp. - channel {i}")
-#         ax.plot(t, v8[i], "-", alpha=0.6, label=f"dig. - channel {i}")
+#         # ax.plot(t, v6[i], "-", alpha=0.6, label=f"preamp. - channel {i}")
+#         # ax.plot(t, v7[i], "-", alpha=0.6, label=f"amp. - channel {i}")
+#         # ax.plot(t, v8[i], "-", alpha=0.6, label=f"dig. - channel {i}")
 #         ax.set_ylabel(r"$v$ /V")
 #         ax.legend(loc="upper right")
 #         ax.grid(True)
