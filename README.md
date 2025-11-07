@@ -19,6 +19,9 @@ The package is compatible with Monte Carlo simulation frameworks (e.g., Geant4, 
 - ⚙️ Analog filtering stages (RC preamplifier and CR fast amplifier)  
 - 🧮 Digitization with low-pass filtering, quantization, and saturation
 
+Technical details are provided in:
+🔗 https://doi.org/10.1051/epjconf/202533810001
+
 ---
 
 ## 📦 Installation
