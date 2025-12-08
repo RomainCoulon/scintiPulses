@@ -2,13 +2,13 @@
 
 # scintiPulses
 
-\<div align="center"\>
+<div align="center">
 
-\<img src="scintiPulses_logo.jpg" alt="scintiPulses Logo" width="300"/\>
+<img src="scintiPulses_logo.jpg" alt="scintiPulses Logo" width="300"/>
 
 **Realistic Simulation of Scintillation Detector Signals**
 
-\</div\>
+</div>
 
 -----
 
