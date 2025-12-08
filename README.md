@@ -8,6 +8,11 @@
 
 **Realistic Simulation of Scintillation Detector Signals**
 
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Python](https://img.shields.io/badge/python-3.8%2B-blue)
+![Status](https://img.shields.io/badge/status-stable-green)
+![BIPM](https://img.shields.io/badge/maintained%20by-BIPM-005696)
+
 </div>
 
 -----
