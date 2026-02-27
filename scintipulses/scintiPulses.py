@@ -88,8 +88,8 @@ def cr_filter(v, tau, dt):
     return v_out
 
 def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
-                                 tau1 = 100e-9, tau2 = 2000e-9, p_delayed = 0, F=1,
-                                 lambda_ = 1e5, L = 1, C1 = 1, sigma_C1 = 0, I=-1,
+                                 tau1 = 5e-9, tau2 = 80e-9, p_Etype = 0, tau3 = 80e-9, p_TTA = 0,
+                                 F=1, lambda_ = 1e5, L = 1, C1 = 1, sigma_C1 = 0, I=-1,
                                  tauS = 1e-9, rendQ = 1,
                                  afterPulses = False, pA = 1e-3, tauA = 5e-6, sigmaA = 1e-6,
                                  darkNoise=False, fD = 1e-4,
@@ -111,11 +111,15 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
     fS : float, optional
         sampling rate in S/s. The default is 500 MS/s.
     tau1 : float, optional
-        decay period of the fluorescence. The default is 100e-9.
+        decay period of the fluorescence. The default is 5e-9.
     tau2 : float, optional
-        decay period of the delayed fluorescence. The default is 2000e-9.
-    p_delayed : float, optional
-        ratio of energy converted in delayed fluorescence. The default is 0.
+        decay period of the delayed fluorescence through type-E (T1->S1) transition. The default is 80e-9.
+    p_Etype : float, optional
+        addtional fraction of energy converted in delayed fluorescence through type-E (T1->S1) transition. The default is 0.
+    tau3 : float, optional
+            decay period of the delayed fluorescence through TTA (T1+T1->S1) transition. The default is 200e-9.
+    p_TTA : float, optional
+            addtional fraction of energy converted in delayed fluorescence through TTA (T1+T1->S1) transition. The default is 0.
     F : float, optional
         Fano factor. The default is 1.
     lambda_ : float, optional
@@ -239,9 +243,9 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
     ## SIMULATION OF THE DETERMINISTIC ILLUMINATION FUNCTION ##
     ###########################################################
     for i, ti in enumerate(arrival_times):
-        IllumFCT0 = (1-p_delayed)*(Nph[i]/tau1) * np.exp(-t/tau1)+p_delayed*(Nph[i]/tau2) * np.exp(-t/tau2) # Exponential law x the nb of PHE
+        IllumFCT0 = (Nph[i]/tau1) * np.exp(-t/tau1) + p_Etype*(Nph[i]/tau2)*np.exp(-t/tau2) + p_TTA*(Nph[i]/tau3)*np.exp(-t/tau3)# Exponential law x the nb of PHE
         IllumFCT0 *= timeStep
-        IllumFCT0 *= Nph[i]/sum(IllumFCT0)
+        IllumFCT0 *= Nph[i]*(1+p_Etype)*(1+p_TTA)/sum(IllumFCT0)
         flag0 = int(ti/timeStep)
         y0[flag0] += Y[i]
         if Nph[i] > 0:
@@ -258,8 +262,8 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
         
         flag = int(ti/timeStep)       # indice of the decay event
                 
-        mean_n_s_prompt = (1-p_delayed)*Nph[k] # mean number of exited states leading to prompt photons
-        mean_n_s_delayed = p_delayed*Nph[k]    # mean number of exited states leading to delayed photons
+        mean_n_s_prompt = Nph[k] # mean number of exited states leading to prompt photons
+        mean_n_s_delayed = p_Etype*Nph[k]+p_TTA*Nph[k]    # mean number of exited states leading to delayed photons
         
         if F==1:
             n_s_prompt = np.random.poisson(mean_n_s_prompt)   # number of exited states leading to prompt photons
