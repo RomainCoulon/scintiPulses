@@ -88,7 +88,7 @@ def cr_filter(v, tau, dt):
     return v_out
 
 def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
-                                 tau1 = 5e-9, tau2 = 80e-9, p2 = 0, tau3 = 80e-9, p3 = 0, tau4 = 80e-9, p4 = 0,
+                                 tau1 = 5e-9, tau2 = 80e-9, p2 = 0, tau3 = 80e-9, p3 = 0, tau4 = 80e-9, p4 = 0, ndiff = 1,
                                  F=1, lambda_ = 1e5, L = 1, C1 = 1, sigma_C1 = 0, I=-1,
                                  tauS = 1e-9, rendQ = 1,
                                  afterPulses = False, pA = 1e-3, tauA = 5e-6, sigmaA = 1e-6,
@@ -117,13 +117,15 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
     p2 : float, optional
         addtional fraction of energy converted in delayed fluorescence through (e.g. exitonic recombination). The default is 0.
     tau3 : float, optional
-            decay period of the delayed fluorescence through TTA (T1+T1->S1) transition. The default is 200e-9.
+        decay period of the delayed fluorescence through TTA (T1+T1->S1) transition. The default is 200e-9.
     p3 : float, optional
-            addtional fraction of energy converted in delayed fluorescence through TTA (T1+T1->S1) transition. The default is 0.
+        addtional fraction of energy converted in delayed fluorescence through TTA (T1+T1->S1) transition. The default is 0.
     tau4 : float, optional
-            decay period of the delayed fluorescence through TTA (T1+T1->S1) transition. The default is 200e-9.
+        decay period of the delayed fluorescence through TTA (T1+T1->S1) transition (Voltz model). The default is 200e-9.
     p4 : float, optional
-            addtional fraction of energy converted in delayed fluorescence through TTA (T1+T1->S1) transition. The default is 0.
+        addtional fraction of energy converted in delayed fluorescence through TTA (T1+T1->S1) transition (Voltz model). The default is 0.
+    ndiff : foat, optional
+        diffusion parameter (model de Voltz)
     F : float, optional
         Fano factor. The default is 1.
     lambda_ : float, optional
@@ -247,7 +249,7 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
     ## SIMULATION OF THE DETERMINISTIC ILLUMINATION FUNCTION ##
     ###########################################################
     for i, ti in enumerate(arrival_times):
-        IllumFCT0 = (Nph[i]/tau1) * np.exp(-t/tau1) + p2*(Nph[i]/tau2)*np.exp(-t/tau2) + p3*(Nph[i]/tau3)*np.exp(-t/tau3) + p4/(1+t/tau4)# Exponential law x the nb of PHE
+        IllumFCT0 = (Nph[i]/tau1) * np.exp(-t/tau1) + p2*(Nph[i]/tau2)*np.exp(-t/tau2) + p3*(Nph[i]/tau3)*np.exp(-t/tau3) + p4/(1+t/tau4)**ndiff
         IllumFCT0 *= timeStep
         IllumFCT0 *= Nph[i]*(1+p2)*(1+p3)*(1+p4)/sum(IllumFCT0)
         flag0 = int(ti/timeStep)
