@@ -298,7 +298,7 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
         l = 0; n_e_delayed_V=[]
         while n_s_delayed_V>0 or ti+i*timeStep<t[-1]:
             t_i = l / fS
-            n_td_V = 1 - ((tau3 + t_i) / (tau3 + t_i + 1/fS))**(ndiff - 1)
+            n_td_V = 1 - ((tau3 + t_i) / (tau3 + t_i + 1/fS))**(ndiff)
             n_p_delayed_V = np.random.binomial(n_s_delayed_V, n_td_V)         # number of delayed transitions during the interval
             n_p_delayed_z_V = np.random.multinomial(n_p_delayed_V, np.ones(nChannel)/nChannel)  # shared number of delayed transitions during the interval
             n_e_delayed_V.append(np.random.binomial(n_p_delayed_z_V, rendQ))  # number of measured charges during the interval
