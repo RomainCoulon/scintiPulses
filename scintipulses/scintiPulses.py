@@ -88,7 +88,7 @@ def cr_filter(v, tau, dt):
     return v_out
 
 def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
-                                 tau1 = 5e-9, tau2 = 80e-9, p2 = 0, tau3 = 80e-9, p3 = 0, tau4 = 80e-9, p4 = 0, ndiff = 1,
+                                 tau1 = 5e-9, tau2 = 80e-9, p2 = 0, tau3 = 80e-9, p3 = 0, ndiff = 1,
                                  F=1, lambda_ = 1e5, L = 1, C1 = 1, sigma_C1 = 0, I=-1,
                                  tauS = 1e-9, rendQ = 1,
                                  afterPulses = False, pA = 1e-3, tauA = 5e-6, sigmaA = 1e-6,
@@ -113,16 +113,12 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
     tau1 : float, optional
         decay period of the fluorescence. The default is 5e-9.
     tau2 : float, optional
-        decay period of the delayed fluorescence (type exitonic recombination). The default is 80e-9.
+        decay period of the delayed fluorescence through TTA (T1+T1->S1) transition. The default is 80e-9.
     p2 : float, optional
-        addtional fraction of energy converted in delayed fluorescence through (e.g. exitonic recombination). The default is 0.
-    tau3 : float, optional
-        decay period of the delayed fluorescence through TTA (T1+T1->S1) transition. The default is 200e-9.
-    p3 : float, optional
         addtional fraction of energy converted in delayed fluorescence through TTA (T1+T1->S1) transition. The default is 0.
-    tau4 : float, optional
+    tau3 : float, optional
         decay period of the delayed fluorescence through TTA (T1+T1->S1) transition (Voltz model). The default is 200e-9.
-    p4 : float, optional
+    p3 : float, optional
         addtional fraction of energy converted in delayed fluorescence through TTA (T1+T1->S1) transition (Voltz model). The default is 0.
     ndiff : foat, optional
         diffusion parameter (model de Voltz)
@@ -249,9 +245,9 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
     ## SIMULATION OF THE DETERMINISTIC ILLUMINATION FUNCTION ##
     ###########################################################
     for i, ti in enumerate(arrival_times):
-        IllumFCT0 = (Nph[i]/tau1) * np.exp(-t/tau1) + p2*(Nph[i]/tau2)*np.exp(-t/tau2) + p3*(Nph[i]/tau3)*np.exp(-t/tau3) + p4/(1+t/tau4)**ndiff
+        IllumFCT0 = (Nph[i]/tau1) * np.exp(-t/tau1) + p2*(Nph[i]/tau2)*np.exp(-t/tau2) + p3/(1+t/tau3)**ndiff
         IllumFCT0 *= timeStep
-        IllumFCT0 *= Nph[i]*(1+p2)*(1+p3)*(1+p4)/sum(IllumFCT0)
+        IllumFCT0 *= Nph[i]*(1+p2)*(1+p3)/sum(IllumFCT0)
         flag0 = int(ti/timeStep)
         y0[flag0] += Y[i]
         if Nph[i] > 0:
@@ -263,20 +259,24 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
     ## SIMULATION OF THE QUANTUM ILLUMINATION FUNCTION ##
     #####################################################
     n_tp = 1-np.exp(-1/(fS*tau1)) # prompt transition probability
-    n_td = 1-np.exp(-1/(fS*tau2)) # delayed transition probability    
+    n_td = 1-np.exp(-1/(fS*tau2)) # delayed transition probability (model bi-exponential)
+    
     for k, ti in enumerate(arrival_times):
         
         flag = int(ti/timeStep)       # indice of the decay event
                 
         mean_n_s_prompt = Nph[k] # mean number of exited states leading to prompt photons
-        mean_n_s_delayed = p2*Nph[k]+p3*Nph[k]+p4*Nph[k]    # mean number of exited states leading to delayed photons
+        mean_n_s_delayed = p2*Nph[k]
+        mean_n_s_delayed_V = p3*Nph[k]    # mean number of exited states leading to delayed photons
         
         if F==1:
             n_s_prompt = np.random.poisson(mean_n_s_prompt)   # number of exited states leading to prompt photons
             n_s_delayed = np.random.poisson(mean_n_s_delayed) # number of exited states leading to delayed photons
+            n_s_delayed_V = np.random.poisson(mean_n_s_delayed_V) # number of exited states leading to delayed photons (Voltz)
         else:
             n_s_prompt = truncnorm.rvs((0 - mean_n_s_prompt) / F*mean_n_s_prompt, np.inf, loc=mean_n_s_prompt, scale=F*mean_n_s_prompt)   # number of exited states leading to prompt photons
             n_s_delayed = truncnorm.rvs((0 - mean_n_s_delayed) / F*mean_n_s_delayed, np.inf, loc=mean_n_s_delayed, scale=F*mean_n_s_delayed) # number of exited states leading to delayed photons
+            n_s_delayed_V = truncnorm.rvs((0 - mean_n_s_delayed_V) / F*mean_n_s_delayed_V, np.inf, loc=mean_n_s_delayed_V, scale=F*mean_n_s_delayed_V) # number of exited states leading to delayed photons
         
         i = 0; n_e_prompt=[]
         while n_s_prompt>0 or ti+i*timeStep<t[-1]:            
@@ -295,11 +295,23 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
             n_s_delayed -= n_p_delayed                                 # update of the number of exited states leading to delayed photons
             l += 1                                                     # move to next interval
             
+        l = 0; n_e_delayed_V=[]
+        while n_s_delayed_V>0 or ti+i*timeStep<t[-1]:
+            t_i = l / fS
+            n_td_V = 1 - ((tau3 + t_i) / (tau3 + t_i + 1/fS))**(ndiff - 1)
+            n_p_delayed_V = np.random.binomial(n_s_delayed_V, n_td_V)         # number of delayed transitions during the interval
+            n_p_delayed_z_V = np.random.multinomial(n_p_delayed_V, np.ones(nChannel)/nChannel)  # shared number of delayed transitions during the interval
+            n_e_delayed_V.append(np.random.binomial(n_p_delayed_z_V, rendQ))  # number of measured charges during the interval
+            n_s_delayed_V -= n_p_delayed_V                                 # update of the number of exited states leading to delayed photons
+            l += 1                                                     # move to next interval
+            
+            
         # if sum(IllumFCT0) > 0: # if at least one charge
         
         for z in range(nChannel):     # for each channel
             n_e_prompt = np.asarray(n_e_prompt)     # convert the frames in arrays
             n_e_delayed = np.asarray(n_e_delayed)
+            n_e_delayed_V = np.asarray(n_e_delayed_V)
             
             if len(n_e_prompt)>0:
                 if n < flag+len(n_e_prompt[:,z]):
@@ -320,6 +332,17 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
                     v1[z,flag:n] += n_e_delayed[0:cut,z]
                 else:
                     v1[z,flag:flag+len(n_e_delayed[:,z])] += n_e_delayed[:,z]
+            # else:
+            #     print("d", n_e_delayed)
+            
+            if len(n_e_delayed_V)>0:
+                if n < flag+len(n_e_delayed_V[:,z]):
+                    # cut = flag+len(n_e_delayed[:,z])-n
+                    cut = n - flag
+                    # v1[z,flag:flag+len(n_e_delayed[0:n-cut,z])] += n_e_delayed[0:-cut,z]
+                    v1[z,flag:n] += n_e_delayed_V[0:cut,z]
+                else:
+                    v1[z,flag:flag+len(n_e_delayed_V[:,z])] += n_e_delayed_V[:,z]
             # else:
             #     print("d", n_e_delayed)
                             
