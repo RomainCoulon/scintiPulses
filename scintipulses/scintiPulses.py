@@ -87,16 +87,16 @@ def cr_filter(v, tau, dt):
 
     return v_out
 
-def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
-                                 tau1 = 5e-9, tau2 = 80e-9, p2 = 0, tau3 = 80e-9, p3 = 0, ndiff = 1,
-                                 F=1, lambda_ = 1e5, L = 1, C1 = 1, sigma_C1 = 0, I=-1,
-                                 tauS = 1e-9, rendQ = 1,
+def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=1e9, nChannel=1,
+                                 tau1 = 4.6e-9, tau2 = 120e-9, p2 = 0.1,
+                                 F=1, lambda_ = 1e4, L = 5, C = 5e-12, G0=20e6, sigma_G = 0, I=-1,
+                                 tauS = 2.23e-9, rendQ = 0.25,
                                  afterPulses = False, pA = 1e-3, tauA = 5e-6, sigmaA = 1e-6,
                                  darkNoise=False, fD = 1e-4,
                                  electronicNoise=False, sigmaRMS = 0.01,
                                  pream = False, G1 = 1, tauRC = 1000e-6,
                                  ampli = False, G2 = 1, tauCR = 2e-6, nCR=1,                                 
-                                 digitization=False, fc = 2e8, R=14, Vs=2):
+                                 digitization=False, fc = 0.4e9, R=10, Vs=0.5):
     """
     This function simulate a signal from a scintillation detector.
 
@@ -109,33 +109,29 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
     tN : float, optional
         duration of the signal frame in s. The default is 1e-4.
     fS : float, optional
-        sampling rate in S/s. The default is 500 MS/s.
+        sampling rate in Sample/s. The default is 1 GS/s.
     tau1 : float, optional
-        decay period of the fluorescence. The default is 5e-9.
+        decay period of the fluorescence in s. The default is 4.6 ns.
     tau2 : float, optional
-        decay period of the delayed fluorescence through TTA (T1+T1->S1) transition. The default is 80e-9.
+        decay period of the delayed fluorescence through TTA (T1+T1->S1) transition in s. The default is 120 ns.
     p2 : float, optional
-        addtional fraction of energy converted in delayed fluorescence through TTA (T1+T1->S1) transition. The default is 0.
-    tau3 : float, optional
-        decay period of the delayed fluorescence through TTA (T1+T1->S1) transition (Voltz model). The default is 200e-9.
-    p3 : float, optional
-        addtional fraction of energy converted in delayed fluorescence through TTA (T1+T1->S1) transition (Voltz model). The default is 0.
-    ndiff : foat, optional
-        diffusion parameter (model de Voltz)
+        addtional fraction of energy converted in delayed fluorescence through TTA (T1+T1->S1) transition. The default is 10 %.
     F : float, optional
         Fano factor. The default is 1.
     lambda_ : float, optional
-        input count rate in s-1. The default is 1e5.
+        input count rate in s-1. The default is 1e4 s-1.
     L : float, optional
         scintillation light yield in keV-1
-    C1 : float, optional
-        capacitance of the phototube in elementary charge per volt unit (in 1.6e-19 F). The default is 1.
-    sigma_C1 : float, optional
-        standard deviation of the capaciance fluctuation in elementary charge per volt unit (in 1.6e-19 F). The default is 0.
+    C : float, optional
+        capacitance of the phototube in F. The default is 5 pF.
+    G0 : float, optional
+        gain of the PMT. The default is 20e6
+    sigma_G : float, optional
+        standard deviation of the PMT Gain. The default is 0.
     I : integer
         voltage invertor to display positive pulses. The default is -1.
     tauS : float, optional
-        pulse width of single electron in s. The default is 1e-9.
+        pulse width of single electron in s. The default is 2.23 ns.
     rendQ : float, optional
         quantum efficiency of the photon-to-charge conversion. The default is 1.
     nChannel : integer, optional
@@ -245,9 +241,9 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
     ## SIMULATION OF THE DETERMINISTIC ILLUMINATION FUNCTION ##
     ###########################################################
     for i, ti in enumerate(arrival_times):
-        IllumFCT0 = (Nph[i]/tau1) * np.exp(-t/tau1) + p2*(Nph[i]/tau2)*np.exp(-t/tau2) + p3/(1+t/tau3)**ndiff
+        IllumFCT0 = (Nph[i]/tau1) * np.exp(-t/tau1) + p2*(Nph[i]/tau2)*np.exp(-t/tau2)
         IllumFCT0 *= timeStep
-        IllumFCT0 *= Nph[i]*(1+p2)*(1+p3)/sum(IllumFCT0)
+        IllumFCT0 *= Nph[i]*(1+p2)/sum(IllumFCT0)
         flag0 = int(ti/timeStep)
         y0[flag0] += Y[i]
         if Nph[i] > 0:
@@ -266,17 +262,14 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
         flag = int(ti/timeStep)       # indice of the decay event
                 
         mean_n_s_prompt = Nph[k] # mean number of exited states leading to prompt photons
-        mean_n_s_delayed = p2*Nph[k]
-        mean_n_s_delayed_V = p3*Nph[k]    # mean number of exited states leading to delayed photons
+        mean_n_s_delayed = p2*Nph[k] # mean number of exited states leading to delayed photons 
         
         if F==1:
             n_s_prompt = np.random.poisson(mean_n_s_prompt)   # number of exited states leading to prompt photons
             n_s_delayed = np.random.poisson(mean_n_s_delayed) # number of exited states leading to delayed photons
-            n_s_delayed_V = np.random.poisson(mean_n_s_delayed_V) # number of exited states leading to delayed photons (Voltz)
         else:
             n_s_prompt = truncnorm.rvs((0 - mean_n_s_prompt) / F*mean_n_s_prompt, np.inf, loc=mean_n_s_prompt, scale=F*mean_n_s_prompt)   # number of exited states leading to prompt photons
             n_s_delayed = truncnorm.rvs((0 - mean_n_s_delayed) / F*mean_n_s_delayed, np.inf, loc=mean_n_s_delayed, scale=F*mean_n_s_delayed) # number of exited states leading to delayed photons
-            n_s_delayed_V = truncnorm.rvs((0 - mean_n_s_delayed_V) / F*mean_n_s_delayed_V, np.inf, loc=mean_n_s_delayed_V, scale=F*mean_n_s_delayed_V) # number of exited states leading to delayed photons
         
         i = 0; n_e_prompt=[]
         while n_s_prompt>0 or ti+i*timeStep<t[-1]:            
@@ -295,23 +288,12 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
             n_s_delayed -= n_p_delayed                                 # update of the number of exited states leading to delayed photons
             l += 1                                                     # move to next interval
             
-        l = 0; n_e_delayed_V=[]
-        while n_s_delayed_V>0 or ti+i*timeStep<t[-1]:
-            t_i = l / fS
-            n_td_V = 1 - ((tau3 + t_i) / (tau3 + t_i + 1/fS))**(ndiff)
-            n_p_delayed_V = np.random.binomial(n_s_delayed_V, n_td_V)         # number of delayed transitions during the interval
-            n_p_delayed_z_V = np.random.multinomial(n_p_delayed_V, np.ones(nChannel)/nChannel)  # shared number of delayed transitions during the interval
-            n_e_delayed_V.append(np.random.binomial(n_p_delayed_z_V, rendQ))  # number of measured charges during the interval
-            n_s_delayed_V -= n_p_delayed_V                                 # update of the number of exited states leading to delayed photons
-            l += 1                                                     # move to next interval
-            
             
         # if sum(IllumFCT0) > 0: # if at least one charge
         
         for z in range(nChannel):     # for each channel
             n_e_prompt = np.asarray(n_e_prompt)     # convert the frames in arrays
             n_e_delayed = np.asarray(n_e_delayed)
-            n_e_delayed_V = np.asarray(n_e_delayed_V)
             
             if len(n_e_prompt)>0:
                 if n < flag+len(n_e_prompt[:,z]):
@@ -335,29 +317,6 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
             # else:
             #     print("d", n_e_delayed)
             
-            if len(n_e_delayed_V)>0:
-                if n < flag+len(n_e_delayed_V[:,z]):
-                    # cut = flag+len(n_e_delayed[:,z])-n
-                    cut = n - flag
-                    # v1[z,flag:flag+len(n_e_delayed[0:n-cut,z])] += n_e_delayed[0:-cut,z]
-                    v1[z,flag:n] += n_e_delayed_V[0:cut,z]
-                else:
-                    v1[z,flag:flag+len(n_e_delayed_V[:,z])] += n_e_delayed_V[:,z]
-            # else:
-            #     print("d", n_e_delayed)
-                            
-    # fast version (deprecated)
-    # for i, l in enumerate(v0):
-    #     nph = np.random.poisson(l)
-    #     if nChannel == 1:
-    #         ne = np.random.binomial(nph, rendQ)
-    #         if ne>0:
-    #             v1[(nChannel-1,i)]+=ne
-    #     else:
-    #         pVec = [1/nChannel for j in range(nChannel)]
-    #         ne = np.random.multinomial(nph, pVec)
-    #         for j in range(nChannel):
-    #             v1[(j,i)]+=np.random.binomial(ne[j], rendQ)
             
     ####################################
     ## SIMUALTION OF THE AFTER-PULSES ##
@@ -390,8 +349,7 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
     ########################
     ## VOLTAGE CONVERSION ##
     ########################
-    kC = np.random.normal(1,sigma_C1,1)
-    v4 = -I*(kC/C1)*sp.gaussian_filter1d(v3,tauS/timeStep)
+    v4 = -I*(np.random.normal(1,sigma_G,1)/C)*1.602e-19*sp.gaussian_filter1d(v3,tauS/timeStep)
     
     #####################################
     ## SIMULATION OF THE THERMAL NOISE ##
@@ -445,20 +403,18 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
 # Niter=1
 # v1sum = []
 # arrt = [1e-8, 2e-8]
-# nc = 3
+# nc = 1
 # for i in range(Niter):
-#     t, v0, v1, v2, v3, v4, v5, v6, v7, v8, y0, y1 = scintiPulses(Y, tN=1e-7,
-#                                   arrival_times = arrt, nChannel=nc,
-#                                   fS=fS, tau1 = 5.44e-9, F=1,
-#                                   tau2 = 254.5e-9, p_delayed = 0.5,
-#                                   lambda_ = 1e6, L = 1.2, C1 = 1, sigma_C1 = 0, I=-1,
-#                                   tauS = tauS, rendQ=0.25,
-#                                   electronicNoise=False, sigmaRMS = sigmaRMS,
-#                                   afterPulses = False, pA = 50e-3, tauA = 20e-6, sigmaA = 1e-7,
-#                                   digitization=True, fc = fS*0.4, R=8, Vs=2,
-#                                   darkNoise=False, fD = 10e6,
-#                                   pream = True, G1=2, tauRC = 10e-6,
-#                                   ampli = True, G2=2, tauCR = 0.5e-6, nCR=1)
+#     t, v0, v1, v2, v3, v4, v5, v6, v7, v8, y0, y1 = scintiPulses(Y, arrival_times=arrt, tN=0.5e-6, fS=1e9, nChannel=1,
+#                                      tau1 = 4.6e-9, tau2 = 120e-9, p2 = 0.1,
+#                                      F=1, lambda_ = 1e4, L = 5, C = 5e-12, G0=20e6, sigma_G = 0, I=-1,
+#                                      tauS = 2.23e-9, rendQ = 0.25,
+#                                      afterPulses = False, pA = 1e-3, tauA = 5e-6, sigmaA = 1e-6,
+#                                      darkNoise=False, fD = 1e-4,
+#                                      electronicNoise=False, sigmaRMS = 0.01,
+#                                      pream = False, G1 = 1, tauRC = 1000e-6,
+#                                      ampli = False, G2 = 1, tauCR = 2e-6, nCR=1,                                 
+#                                      digitization=False, fc = 0.4e9, R=10, Vs=0.5)
 #     v1sum.append(sum(v1))
 
 # print(np.mean(v1sum), np.std(v1sum))
@@ -470,14 +426,14 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=500e6, nChannel=1,
 # # Ensure axes is iterable even if nc == 1
 # if nc == 1:
 #     # plt.plot(t, v0, "-", alpha=0.4, label="illum fct")
-#     # plt.plot(t, v1, "-", alpha=0.6, label="shot noise")
+#     plt.plot(t, v1, "-", alpha=0.6, label="shot noise")
 #     # plt.plot(t, v2,"-", alpha=0.4, label="after-pulses")
 #     # plt.plot(t, v3,"-", alpha=0.4, label="dark noise")
-#     # plt.plot(t, v4,"-", alpha=0.4, label="transimp")
+#     plt.plot(t, v4,"-", alpha=0.4, label="transimp")
 #     # plt.plot(t, v5,"-", alpha=0.4, label="therm. noise")
-#     plt.plot(t, v6,"-", alpha=0.4, label="preamp.")
-#     plt.plot(t, v7,"-", alpha=0.4, label="amp.")
-#     plt.plot(t, v8,"-", alpha=0.4, label="dig.")
+#     # plt.plot(t, v6,"-", alpha=0.4, label="preamp.")
+#     # plt.plot(t, v7,"-", alpha=0.4, label="amp.")
+#     # plt.plot(t, v8,"-", alpha=0.4, label="dig.")
 #     plt.ylabel(r"$v$ /V")
 #     plt.legend(loc="upper right")
 #     plt.grid(True)

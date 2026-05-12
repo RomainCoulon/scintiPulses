@@ -10,26 +10,26 @@ import tdcrpy as td
 import matplotlib.pyplot as plt
 
 # enerVec = td.TDCR_model_lib.readRecQuenchedEnergies()[0] # energy vector of deposited quenched energies in keV
-ei = 1000
+ei = 10
 arrt = [1e-8] # arrival time vector
 
-tN = 0.3e-6                # duration of the sequence in s
-fS = 500e6            # sampling rate of the digitizer is S/s
+tN = 0.05e-6                # duration of the sequence in s
+fS = 1e9            # sampling rate of the digitizer is S/s
 
 ICR = 1e5                       # imput count rate in s-1
 
-tau1 = 5e-9                    # time constant of the prompt fluorescence in s
-tau2 = 100e-9                  # time constant of the delayed fluorescence in s
+tau1 = 4.16e-9                    # time constant of the prompt fluorescence in s
+tau2 = 120e-9                  # time constant of the delayed fluorescence in s
 tau3 = 100e-9
-p2 = 0                    # fraction of energy converted in delayed fluorescence
-p3 = 0.7
+p2 = 0.1                    # fraction of energy converted in delayed fluorescence
+p3 = 0
 ndiff = 1
 
 L = 10                           # light yield (free parameter) charges per keV
 
-se_pulseCharge = 1              # output voltage of a charge pulse in V
+se_pulseCharge = 0.624              # output voltage of a charge pulse in V
 pulseSpread = 0.1               # spread parameter of charge pulses in V sigma C1
-pulseWidth = 50e-9              # time width of charge pulses in s tau_S
+pulseWidth = 2.25e-9              # time width of charge pulses in s tau_S
 voltageBaseline = 0             # constant voltage basline in V
 
 
@@ -38,20 +38,20 @@ rA = 1e-2
 tauA = 20e-6
 sigmaA = 5e-7
 
-thermalNoise=True               # add thermal noise 
+thermalNoise=False               # add thermal noise 
 sigmathermalNoise = 0.01         # rms of the thermal noise (sigma of Normal noise)
-antiAliasing = True             # add antiAliasing Butterworth low-pass filter
+antiAliasing = False             # add antiAliasing Butterworth low-pass filter
 bandwidth = fS*0.1    # bandwidth of the antiAliasing filter (in Hz)
-quantiz = True                  # add quatizaion noise
+quantiz = False                  # add quatizaion noise
 coding_resolution_bits = 14     # encoding resolution in bits
 full_scale_range = 2            # voltage scale range in V
-thermonionic = True           # thermoinic noise
+thermonionic = False           # thermoinic noise
 thermooinicPeriod = 1e6      # time constant of the thermooinic noise (s)
 
-pream = True                  # add preamplificator filtering
+pream = False                  # add preamplificator filtering
 tauPream = 10e-6                # shaping time (RC parameter) in s
 
-ampli = True                   # add amplifier filtering
+ampli = False                  # add amplifier filtering
 tauAmp = 0.5e-6                   # shaping time (CR parameter) in s
 CRorder=1                       # order of the CR filter
 
@@ -97,14 +97,28 @@ import numpy as np
 
 plt.figure("plot #1")
 plt.clf()
-# plt.plot(t, v0*8,"-", label=r"$v^{(0)}$")
-plt.plot(t, v1[0],"-", alpha=0.7, label=r"$v^{(1)} PMT A$")
-plt.plot(t, v1[1],"-", alpha=0.7, label=r"$v^{(1)} PMT B$")
-plt.plot(t, v1[2],"-", alpha=0.7, label=r"$v^{(1)} PMT C$")
-plt.legend()
-plt.xlabel(r"$t$ /s")
-plt.ylabel(r"$v$ /s$^{-1}$")
+
+fig, ax1 = plt.subplots()
+
+# First y-axis (left)
+ax1.plot(t, v1[0], "-", alpha=0.7, label=r"$n_{eA}$ (PMT A)", color="tab:blue")
+ax1.set_xlabel(r"$t$ (s)")
+ax1.set_ylabel(r"$n_{e}$", color="tab:blue")
+ax1.tick_params(axis="y", labelcolor="tab:blue")
+
+# Second y-axis (right)
+ax2 = ax1.twinx()
+ax2.plot(t, v4[0], "-", alpha=0.7, label=r"$v_{eA}$ (PMT A)", color="tab:red")
+ax2.set_ylabel(r"$v$ (V)", color="tab:red")
+ax2.tick_params(axis="y", labelcolor="tab:red")
+
+# Combine legends from both axes
+lines_1, labels_1 = ax1.get_legend_handles_labels()
+lines_2, labels_2 = ax2.get_legend_handles_labels()
+ax1.legend(lines_1 + lines_2, labels_1 + labels_2)
+
 plt.savefig("Figs/figure_1.svg")
+plt.show()
 
 # plt.figure("plot #2")
 # plt.clf()
