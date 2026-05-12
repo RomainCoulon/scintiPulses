@@ -27,8 +27,10 @@ This tool is ideal for post-processing data from Monte Carlo simulation framewor
 
 ## ✨ Key Features
 
-  * **Physics-Based Modeling:** Simulates time-dependent fluorescence including prompt and delayed components.
-  * **Photodetector Physics:** Incorporates Quantum shot noise, after-pulses, and thermionic (dark) noise.
+  * **Physics-Based Modeling:** Simulates time-dependent fluorescence including prompt and delayed components, with Fano factor support.
+  * **Multi-Channel Support:** Simulate signals across multiple independent detector channels.
+  * **Photodetector Physics:** Incorporates quantum shot noise, after-pulses, and thermionic (dark) noise.
+  * **PMT Modeling:** Configurable gain, gain fluctuation, signal inversion, and charge spreading.
   * **Electronic Simulation:** Models Johnson-Nyquist thermal noise and signal shaping.
   * **Analog Filtering:** Simulates RC preamplifiers and CR$^{n}$ fast shapers.
   * **Digitization:** Includes anti-aliasing low-pass filtering, ADC quantization, and saturation effects.
@@ -51,45 +53,64 @@ pip install scintiPulses
 
 ## 🚀 Quick Start
 
-The following example demonstrates how to simulate a pulse from a 100 keV energy deposition, including electronic shaping and digitization.
+The following example simulates a single 10 keV energy deposition with a fixed arrival time, using a fast scintillator (e.g. LSO/LYSO-like), and plots the transimpedance amplifier output of the PMT.
 
 ```python
-import numpy as np
+import scintiPulses as sp
 import matplotlib.pyplot as plt
-import scintipulses.scintiPulses as sp
 
-# 1. Define Energy Deposition (1000 events of 100 keV)
-Y = 100 * np.ones(1000)
-
-# 2. Run Simulation
-# Returns the time vector (t) and signal stages (v0 to v8)
-results = sp.scintiPulses(
-    Y,
-    tN=20e-6,           # Duration: 20 us
-    fS=1e8,             # Sample Rate: 100 MHz
-    tau1=250e-9,        # Scintillator decay constant
-    L=1,                # Light yield
-    electronicNoise=True,
-    sigmaRMS=0.005,     # Add electronic noise
-    pream=True,         # Enable Preamplifier
-    tauRC=10e-6,
-    digitization=True,  # Enable Digitization
-    R=14,               # 14-bit ADC
-    fc=4e7
+t, v0, v1, v2, v3, v4, v5, v6, v7, v8, y0, y1 = sp.scintiPulses(
+    # Source parameters
+    [10],               # Energy deposition(s) in keV
+    tN=1e-6,            # Total simulation duration (s)
+    arrival_times=[1e-9],  # Fixed arrival time; if False, times are drawn from Poisson process
+    lambda_=1e4,        # Input count rate (s⁻¹), used when arrival_times=False
+    fS=1e9,             # Sampling frequency (Hz)
+    # Scintillation parameters
+    nChannel=1,         # Number of detector channels
+    tau1=4.6e-9,        # Prompt fluorescence decay time (s)
+    tau2=120e-9,        # Delayed fluorescence decay time (s)
+    p2=0.1,             # Fraction of delayed component
+    F=1,                # Fano factor of the scintillator
+    L=5,                # Light yield (photons/keV)
+    # PMT parameters
+    C=5e-12,            # PMT capacitance (F)
+    G0=20e6,            # PMT gain
+    sigma_G=0,          # PMT gain fluctuation (std dev)
+    I=-1,               # Voltage inverter (+1 or -1)
+    tauS=2.23e-9,       # Charge spreading time (s)
+    afterPulses=False,  # Enable after-pulses
+    pA=1e-3,            # After-pulse probability
+    tauA=5e-6,          # Mean after-pulse delay (s)
+    sigmaA=1e-6,        # Std dev of after-pulse delay (s)
+    darkNoise=False,    # Enable thermionic dark noise
+    fD=1e-4,            # Dark count rate (s⁻¹)
+    # Analog electronics
+    electronicNoise=False,  # Enable Johnson-Nyquist noise
+    sigmaRMS=0.01,      # Electronic noise RMS (V)
+    pream=False,        # Enable RC preamplifier
+    G1=1,               # Preamplifier gain
+    tauRC=1e-3,         # Preamplifier RC time constant (s)
+    ampli=False,        # Enable fast amplifier (shaper)
+    G2=1,               # Amplifier gain
+    tauCR=2e-6,         # Amplifier CR time constant (s)
+    nCR=1,              # Order of the CR filter
+    # Digitization
+    digitization=False, # Enable ADC simulation
+    fc=0.4e9,           # Anti-aliasing filter cut-off frequency (Hz)
+    R=10,               # ADC resolution (bits)
+    Vs=0.5,             # ADC voltage range (V)
 )
 
-# Unpack key results (t is index 0, v8 is final digitized output)
-time_axis = results[0]
-final_signal = results[8]
-
-# 3. Visualization
-plt.figure(figsize=(10, 6))
-plt.plot(time_axis * 1e6, final_signal, label='Digitized Output (v8)')
-plt.xlabel("Time ($\mu$s)")
-plt.ylabel("Voltage (V)")
+# Plot the PMT transimpedance output (v4)
+plt.figure(figsize=(8, 3))
+plt.plot(t, v4, "-", alpha=0.7, label="Transimpedance output")
+plt.xlabel(r"$t$ /s")
+plt.ylabel(r"$v$ /V")
 plt.title("Simulated Scintillation Pulse")
-plt.grid(True, alpha=0.5)
-plt.legend()
+plt.legend(loc="upper right")
+plt.grid(True)
+plt.tight_layout()
 plt.show()
 ```
 
@@ -97,7 +118,7 @@ plt.show()
 
 ## 📡 The Signal Chain (Outputs)
 
-The function returns a tuple containing the time vector and the signal at various stages of processing. This allows you to inspect the signal evolution.
+The function returns a 12-element tuple. This allows inspection of the signal at every stage of the processing chain.
 
 | Variable | Unit | Stage Description |
 | :--- | :--- | :--- |
@@ -106,66 +127,77 @@ The function returns a tuple containing the time vector and the signal at variou
 | **v1** | $e^-$ | **Shot Noise:** Quantized photons added. |
 | **v2** | $e^-$ | **After-pulses:** Spurious pulses added (if enabled). |
 | **v3** | $e^-$ | **Dark Noise:** Thermionic noise added (if enabled). |
-| **v4** | V | **PMT Output:** Conversion to voltage. |
-| **v5** | V | **Thermal Noise:** Electronic white noise added. |
-| **v6** | V | **Preamplifier:** Post-RC filter signal. |
-| **v7** | V | **Shaper:** Post-CR$^n$ fast amplifier signal. |
-| **v8** | V | **ADC:** Final output after filtering, quantization & saturation. |
+| **v4** | V | **PMT Output:** Transimpedance conversion to voltage. |
+| **v5** | V | **Thermal Noise:** Electronic white noise added (if enabled). |
+| **v6** | V | **Preamplifier:** Post-RC filter signal (if enabled). |
+| **v7** | V | **Shaper:** Post-CR$^n$ fast amplifier signal (if enabled). |
+| **v8** | V | **ADC:** Final output after filtering, quantization & saturation (if enabled). |
+| **y0** | — | Auxiliary output (channel-level intermediate). |
+| **y1** | — | Auxiliary output (channel-level intermediate). |
 
 -----
 
 ## ⚙️ Configuration Parameters
 
-### 1\. Physics & Scintillation
+### 1\. Source & Timing
 
 | Parameter | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `Y` | array | `None` | Samples of deposited energy (keV). |
-| `arrival_times` | array/bool | `False` | Explicit arrival times of particles (s). |
+| `Y` | array | `None` | Energy deposition samples (keV). |
+| `arrival_times` | array / bool | `False` | Explicit particle arrival times (s). If `False`, times are drawn from a Poisson process at rate `lambda_`. |
 | `tN` | float | `20e-6` | Total simulation duration (s). |
-| `lambda_` | float | `1e5` | Poisson rate parameter (s$^{-1}$). |
-| `tau1` | float | `250e-9` | Decay constant for **prompt** component (s). |
-| `tau2` | float | `2e-6` | Decay constant for **delayed** component (s). |
-| `p_delayed` | float | `0` | Probability of the delayed component ($0 \le p \le 1$). |
+| `lambda_` | float | `1e4` | Input count rate for random arrivals (s$^{-1}$). |
+| `fS` | float | `1e8` | Sampling frequency (Hz). |
+
+### 2\. Physics & Scintillation
+
+| Parameter | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `nChannel` | int | `1` | Number of detector channels. |
+| `tau1` | float | `250e-9` | Decay constant for the **prompt** component (s). |
+| `tau2` | float | `2e-6` | Decay constant for the **delayed** component (s). |
+| `p2` | float | `0` | Fraction of the delayed component ($0 \le p2 \le 1$). |
+| `F` | float | `1` | Fano factor of the scintillator. |
 | `L` | float | `1` | Scintillation light yield (photons/keV). |
 
-### 2\. Photodetector & Noise
+### 3\. Photodetector (PMT)
 
 | Parameter | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `rendQ` | float | `1` | Quantum efficiency (photon-to-charge). |
-| `C1` | float | `1` | Capacitance (in $1.6 \times 10^{-19}$ F). |
-| `sigma_C1` | float | `0` | Standard deviation of capacitance. |
+| `C` | float | `5e-12` | PMT capacitance (F). |
+| `G0` | float | `20e6` | PMT gain. |
+| `sigma_G` | float | `0` | Standard deviation of PMT gain fluctuation. |
+| `I` | float | `−1` | Voltage inverter factor (+1 or −1). |
 | `tauS` | float | `10e-9` | Charge bunch spreading time (s). |
 | `darkNoise` | bool | `False` | Enable thermionic dark noise. |
-| `fD` | float | `1e4` | Dark noise rate (s$^{-1}$). |
+| `fD` | float | `1e-4` | Dark noise count rate (s$^{-1}$). |
 | `afterPulses` | bool | `False` | Enable after-pulses. |
-| `pA` | float | `0.5` | Probability of after-pulse. |
-| `tauA` | float | `10e-6` | Mean after-pulse delay (s). |
+| `pA` | float | `1e-3` | Probability of an after-pulse. |
+| `tauA` | float | `5e-6` | Mean after-pulse delay (s). |
+| `sigmaA` | float | `1e-6` | Standard deviation of after-pulse delay (s). |
 
-### 3\. Analog Electronics
+### 4\. Analog Electronics
 
 | Parameter | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `electronicNoise`| bool | `False` | Enable Johnson-Nyquist noise. |
+| `electronicNoise` | bool | `False` | Enable Johnson-Nyquist noise. |
 | `sigmaRMS` | float | `0.0` | RMS value of electronic noise (V). |
-| `pream` | bool | `False` | Enable RC Preamplifier simulation. |
-| `G1` | float | `1` | Preamplifier Gain. |
-| `tauRC` | float | `10e-6` | Preamplifier time constant (s). |
-| `ampli` | bool | `False` | Enable Fast Amplifier (Shaper). |
-| `G2` | float | `1` | Fast Amplifier Gain. |
-| `tauCR` | float | `2e-6` | Fast Amplifier time constant (s). |
+| `pream` | bool | `False` | Enable RC preamplifier simulation. |
+| `G1` | float | `1` | Preamplifier gain. |
+| `tauRC` | float | `1e-3` | Preamplifier RC time constant (s). |
+| `ampli` | bool | `False` | Enable fast amplifier (shaper). |
+| `G2` | float | `1` | Fast amplifier gain. |
+| `tauCR` | float | `2e-6` | Fast amplifier CR time constant (s). |
 | `nCR` | int | `1` | Order of the CR filter. |
 
-### 4\. Digitization (ADC)
+### 5\. Digitization (ADC)
 
 | Parameter | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `digitization` | bool | `False` | Enable ADC simulation stage. |
-| `fS` | float | `1e8` | Sampling frequency (Hz). |
 | `fc` | float | `4e7` | Anti-aliasing filter cut-off frequency (Hz). |
-| `R` | int | `14` | ADC Resolution (bits). |
-| `Vs` | float | `2` | Dynamic Range / Saturation voltage (V). |
+| `R` | int | `14` | ADC resolution (bits). |
+| `Vs` | float | `2` | Dynamic range / saturation voltage (V). |
 
 -----
 
