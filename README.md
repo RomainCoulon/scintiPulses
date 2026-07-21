@@ -209,6 +209,11 @@ If you use **scintiPulses** in your research, please cite:
 > *EPJ Web of Conferences* (2025)
 > DOI: [10.1051/epjconf/202533810001](https://doi.org/10.1051/epjconf/202533810001)
 
+You can also look at:
+> **Simulation of stochastic jittering in liquid scintillation counters**
+> *RAD Conference - abstract* (2026)
+> DOI: [10.21175/rad.abstr.book.2026.28.5](https://doi.org/10.21175/rad.abstr.book.2026.28.5)
+
 -----
 
 ## ⚖ License
