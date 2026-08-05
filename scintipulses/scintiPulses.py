@@ -65,6 +65,132 @@ def rc_filter(v, tau, dt):
 
     return v_out
 
+def stopping_power_electron(e, rho=0.98, Z=3.251556, A=5.944938):
+    """
+    Mass collision + radiative stopping power of an electron in an organic
+    liquid-scintillator-like medium.
+
+    Uses the relativistic Bethe formula above 20 keV and the Joy-Luo (1989)
+    modification below, following the same physics as TDCRPy's stopping
+    power model (https://doi.org/10.18434/T4NC7P), reimplemented here so
+    that scintiPulses has no runtime dependency on TDCRPy.
+
+    Parameters
+    ----------
+    e : float
+        Kinetic energy of the electron in eV.
+    rho : float, optional
+        Density of the scintillator in g/cm3. The default is 0.98.
+    Z : float, optional
+        Mean atomic number of the scintillator. The default is 3.251556.
+    A : float, optional
+        Mean mass number of the scintillator. The default is 5.944938.
+
+    Returns
+    -------
+    float
+        Stopping power dE/dx in MeV/cm.
+    """
+    mc_2 = 0.5109989  # MeV
+    I = 64.7e-6       # MeV
+    NA = 6.022e23
+    ahc = 1.437e-13   # MeV.cm
+    emax = 20000      # eV, validity limit of the Joy-Luo branch
+
+    if e >= emax:
+        e1 = e * 1e-6  # MeV
+        gamma = (e1 + mc_2) / mc_2
+        beta_2 = 1 - 1 / gamma**2
+        tau = e1 / mc_2
+        terma = np.log(tau**2 * (tau + 2) / 2)
+        termb = 1 + tau * tau / 8 - (2 * tau + 1) * np.log(2)
+        termc = (tau + 1)**2
+        B0 = terma + termb / termc
+        sc = 0.1535 / beta_2 * Z / A * (B0 - 2 * np.log(I / mc_2))
+        term3 = NA * (Z**2) * rho * (e1 + mc_2) / (137 * (mc_2**2) * A)
+        term4 = 4 * np.log(2 * gamma) - 4 / 3
+        sr = (ahc**2) * term3 * term4
+        dEdx = (sc + sr) * rho  # MeV/cm
+    else:
+        k = 0.85
+        gamma = (e * 1e-6 + mc_2) / mc_2
+        beta_2 = 1 - 1 / gamma**2
+        if beta_2 <= 0:
+            dEdx = 0.0
+        else:
+            stop_num = np.log(1.166 * (e * 1e-6 + k * I) / I)
+            dEdx = (0.1535 / beta_2) * (Z / A) * stop_num * rho * 1.982  # MeV/cm
+
+    return dEdx
+
+def birks_quenched_energy(E, kB, nE=100):
+    """
+    Quenched energy of an electron fully stopped in the scintillator,
+    according to Birks' law of ionisation quenching.
+
+    ref: J.B. Birks, "The Theory and Practice of Scintillation Counting", 1964.
+
+    Parameters
+    ----------
+    E : float
+        Deposited (initial) energy of the electron in keV.
+    kB : float
+        Birks constant in cm/MeV.
+    nE : integer, optional
+        Number of points used to discretize the Birks integral. The default is 100.
+
+    Returns
+    -------
+    float
+        Quenched energy in keV.
+    """
+    if E <= 0:
+        return 0.0
+    e_dis = np.linspace(0, E * 1e3, nE)  # eV
+    f = 1.0 / (1 + kB * np.array([stopping_power_electron(e) for e in e_dis]))
+    q = np.trapz(f, e_dis)  # eV
+    return q * 1e-3  # keV
+
+def tta_delayed_yield(E, Sd, kd, nE=100):
+    """
+    Mean number of delayed (TTA) photons produced by an electron of initial
+    energy E fully stopped in the scintillator, through a Birks-like
+    saturating model of the local triplet interaction density.
+
+    Note this is a distinct mechanism from Birks' ionisation quenching
+    (see birks_quenched_energy): Birks' kB quenches the Sn->S1 internal
+    conversion feeding the *prompt* singlet population, whereas Sd/kd here
+    govern how much of the deposited energy ends up producing triplets
+    that later undergo triplet-triplet annihilation (T1+T1->S1) and
+    contribute to the *delayed* component. The saturation with kd reflects
+    that, at high dE/dx, the local triplet population itself saturates.
+
+    mu_delayed(E) = integral_0^E [Sd*dE/dx] / [1 + kd*dE/dx] dE
+
+    Parameters
+    ----------
+    E : float
+        Deposited (initial) energy of the electron in keV.
+    Sd : float
+        TTA efficiency factor (delayed photons per keV in the low dE/dx limit).
+    kd : float
+        Saturation constant of the triplet interaction density, in cm/MeV.
+    nE : integer, optional
+        Number of points used to discretize the integral. The default is 100.
+
+    Returns
+    -------
+    float
+        Mean number of delayed (TTA) photons.
+    """
+    if E <= 0 or Sd <= 0:
+        return 0.0
+    e_dis = np.linspace(0, E * 1e3, nE)  # eV
+    S = np.array([stopping_power_electron(e) for e in e_dis])  # MeV/cm
+    f = Sd * S / (1 + kd * S)
+    mu = np.trapz(f, e_dis) * 1e-3  # same eV->keV-equivalent scaling as birks_quenched_energy
+    return mu
+
 def cr_filter(v, tau, dt):
     """
     Apply a CR filter to the voltage signal v.
@@ -89,6 +215,8 @@ def cr_filter(v, tau, dt):
 
 def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=1e9, nChannel=1,
                                  tau1 = 4.6e-9, tau2 = 120e-9, p2 = 0.1,
+                                 quenching = False, kB = 0.01, nE = 100,
+                                 TTA = True, Sd = 0.005, kd = 0.01,
                                  F=1, lambda_ = 1e4, L = 5, C = 5e-12, G0=20e6, sigma_G = 0, I=-1,
                                  tauS = 2.23e-9, rendQ = 0.25,
                                  afterPulses = False, pA = 1e-3, tauA = 5e-6, sigmaA = 1e-6,
@@ -113,9 +241,33 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=1e9, nChannel=1,
     tau1 : float, optional
         decay period of the fluorescence in s. The default is 4.6 ns.
     tau2 : float, optional
-        decay period of the delayed fluorescence through TTA (T1+T1->S1) transition in s. The default is 120 ns.
+        characteristic time of the delayed fluorescence through TTA (T1+T1->S1) transition in s. If TTA=True, the delayed
+        component does not decay exponentially: it follows the Voltz bimolecular kinetics 1/(1+t/tau2)^2, the exact shape
+        of a triplet population undergoing pure second-order (diffusion-free) annihilation. If TTA=False, tau2 instead
+        sets the decay time of a plain exponential delayed component (the original "double exponential" model). The
+        default is 120 ns.
     p2 : float, optional
-        addtional fraction of energy converted in delayed fluorescence through TTA (T1+T1->S1) transition. The default is 10 %.
+        only used when TTA=False: fixed fraction of the total (prompt) light yield converted into delayed fluorescence,
+        mean_n_s_delayed = p2*Nph (the original, simple double-exponential model). The default is 0.1.
+    quenching : boolean, optional
+        reduce the prompt fluorescence yield to the Birks-quenched energy Eq(Y,kB), i.e. ionisation quenching of the
+        Sn->S1 internal-conversion pathway feeding the prompt singlet population. This is a distinct mechanism from the
+        delayed (TTA) channel below and does not feed it. The default is False.
+    kB : float, optional
+        Birks constant in cm/MeV, used only when quenching=True. The default is 0.01 cm/MeV.
+    nE : integer, optional
+        number of points used to discretize the Birks quenching integral Eq(Y,kB) and the TTA integral mu_delayed(Y,Sd,kd)
+        below. The default is 100.
+    TTA : boolean, optional
+        if True, the delayed component follows the Birks-like saturating TTA model
+        mu_delayed(Y) = integral_0^Y [Sd*dE/dx]/[1+kd*dE/dx] dE (mean number of delayed photons growing with the local
+        stopping power dE/dx, see Sd and kd) with Voltz bimolecular kinetics (see tau2). If False, falls back to the
+        original simple model: a fixed fraction p2 of the prompt yield with plain exponential kinetics (decay time tau2).
+        The default is True.
+    Sd : float, optional
+        only used when TTA=True: TTA efficiency factor (delayed photons per keV in the low dE/dx limit). The default is 0.005.
+    kd : float, optional
+        only used when TTA=True: saturation constant of the triplet interaction density, in cm/MeV. The default is 0.01 cm/MeV.
     F : float, optional
         Fano factor. The default is 1.
     lambda_ : float, optional
@@ -234,19 +386,31 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=1e9, nChannel=1,
     t = np.arange(0,tN,timeStep)
     n = len(t)
     Y = np.asarray(Y)
-    Nph = Y*L                      # nb de photon / decay
+    if quenching:
+        Yq = np.array([birks_quenched_energy(Yi, kB, nE) for Yi in Y])  # Birks-quenched (light-producing) energy: Sn->S1 internal-conversion quenching, prompt channel only
+    else:
+        Yq = Y
+    Nph = Yq*L                      # mean nb of prompt photons / decay
+    if TTA:
+        Nph_delayed = np.array([tta_delayed_yield(Yi, Sd, kd, nE) for Yi in Y])  # mean nb of delayed (TTA) photons / decay, dE/dx dependent
+    else:
+        Nph_delayed = p2*Nph            # original simple model: fixed fraction of the prompt yield
     v0=np.zeros(n); y0 =np.zeros(n); y1 = np.zeros(n); v1=np.zeros((nChannel, n))
     
     ###########################################################
     ## SIMULATION OF THE DETERMINISTIC ILLUMINATION FUNCTION ##
     ###########################################################
     for i, ti in enumerate(arrival_times):
-        IllumFCT0 = (Nph[i]/tau1) * np.exp(-t/tau1) + p2*(Nph[i]/tau2)*np.exp(-t/tau2)
+        if TTA:
+            delayed_shape = (Nph_delayed[i]/tau2) / (1+t/tau2)**2
+        else:
+            delayed_shape = (Nph_delayed[i]/tau2) * np.exp(-t/tau2)
+        IllumFCT0 = (Nph[i]/tau1) * np.exp(-t/tau1) + delayed_shape
         IllumFCT0 *= timeStep
-        IllumFCT0 *= Nph[i]*(1+p2)/sum(IllumFCT0)
+        IllumFCT0 *= (Nph[i]+Nph_delayed[i])/sum(IllumFCT0)
         flag0 = int(ti/timeStep)
         y0[flag0] += Y[i]
-        if Nph[i] > 0:
+        if Nph[i] > 0 or Nph_delayed[i] > 0:
             flag = int(ti/timeStep)
             v0 += np.concatenate((np.zeros(flag),IllumFCT0[:n-flag]))
             y1[flag] += Nph[i]
@@ -254,22 +418,29 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=1e9, nChannel=1,
     #####################################################
     ## SIMULATION OF THE QUANTUM ILLUMINATION FUNCTION ##
     #####################################################
-    n_tp = 1-np.exp(-1/(fS*tau1)) # prompt transition probability
-    n_td = 1-np.exp(-1/(fS*tau2)) # delayed transition probability (model bi-exponential)
-    
+    n_tp = 1-np.exp(-1/(fS*tau1)) # prompt transition probability (memoryless, exponential kinetics)
+    if not TTA:
+        n_td_exp = 1-np.exp(-1/(fS*tau2)) # delayed transition probability (memoryless, exponential kinetics)
+    # if TTA=True the delayed channel is not memoryless: its transition
+    # probability n_td(t) is derived below at each step from the survival
+    # function of the 1/(1+t/tau2)^2 bimolecular kinetics
+
     for k, ti in enumerate(arrival_times):
-        
+
         flag = int(ti/timeStep)       # indice of the decay event
-                
+
         mean_n_s_prompt = Nph[k] # mean number of exited states leading to prompt photons
-        mean_n_s_delayed = p2*Nph[k] # mean number of exited states leading to delayed photons 
-        
+        mean_n_s_delayed = Nph_delayed[k] # mean number of exited states leading to delayed photons
+
         if F==1:
             n_s_prompt = np.random.poisson(mean_n_s_prompt)   # number of exited states leading to prompt photons
             n_s_delayed = np.random.poisson(mean_n_s_delayed) # number of exited states leading to delayed photons
         else:
-            n_s_prompt = truncnorm.rvs((0 - mean_n_s_prompt) / F*mean_n_s_prompt, np.inf, loc=mean_n_s_prompt, scale=F*mean_n_s_prompt)   # number of exited states leading to prompt photons
-            n_s_delayed = truncnorm.rvs((0 - mean_n_s_delayed) / F*mean_n_s_delayed, np.inf, loc=mean_n_s_delayed, scale=F*mean_n_s_delayed) # number of exited states leading to delayed photons
+            # rounded to a non-negative integer: n_s_prompt/n_s_delayed are decremented below by
+            # integer binomial draws, and a left-over fractional residue (e.g. 0.9) can never reach
+            # exactly 0, which would make the depletion while-loop below run forever
+            n_s_prompt = max(0, round(truncnorm.rvs((0 - mean_n_s_prompt) / (F*mean_n_s_prompt), np.inf, loc=mean_n_s_prompt, scale=F*mean_n_s_prompt)))   # number of exited states leading to prompt photons
+            n_s_delayed = max(0, round(truncnorm.rvs((0 - mean_n_s_delayed) / (F*mean_n_s_delayed), np.inf, loc=mean_n_s_delayed, scale=F*mean_n_s_delayed))) # number of exited states leading to delayed photons
         
         i = 0; n_e_prompt=[]
         while n_s_prompt>0 or ti+i*timeStep<t[-1]:            
@@ -281,7 +452,12 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=1e9, nChannel=1,
             i += 1                                                   # move to next interval
         
         l = 0; n_e_delayed=[]
-        while n_s_delayed>0 or ti+i*timeStep<t[-1]:
+        while n_s_delayed>0 or ti+l*timeStep<t[-1]:
+            if TTA:
+                t_l = l*timeStep
+                n_td = 1 - (tau2+t_l)/(tau2+t_l+timeStep)              # time-varying hazard of the 1/(1+t/tau2)^2 TTA kinetics
+            else:
+                n_td = n_td_exp                                        # constant hazard (exponential kinetics)
             n_p_delayed = np.random.binomial(n_s_delayed, n_td)         # number of delayed transitions during the interval
             n_p_delayed_z = np.random.multinomial(n_p_delayed, np.ones(nChannel)/nChannel)  # shared number of delayed transitions during the interval
             n_e_delayed.append(np.random.binomial(n_p_delayed_z, rendQ))  # number of measured charges during the interval

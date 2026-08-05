@@ -2,11 +2,11 @@ from setuptools import setup, find_packages
 import codecs
 import os
 
-VERSION = "3.1"
+VERSION = "3.3"
 
 DESCRIPTION = "scintiPulses"
 
-with open("README.md", "r") as f:
+with open("README.md", "r", encoding="utf-8") as f:
     long_description = f.read()
 
 setup(

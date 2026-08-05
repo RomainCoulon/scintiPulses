@@ -28,6 +28,8 @@ This tool is ideal for post-processing data from Monte Carlo simulation framewor
 ## ✨ Key Features
 
   * **Physics-Based Modeling:** Simulates time-dependent fluorescence including prompt and delayed components, with Fano factor support.
+  * **Ionisation Quenching:** Optional Birks-law quenching of the prompt yield, driven by an electron stopping-power model (Bethe + Joy-Luo).
+  * **Delayed (TTA) Fluorescence:** dE/dx-dependent triplet-triplet annihilation model with non-exponential (Voltz bimolecular) kinetics, or a legacy fixed-fraction/exponential model for backward compatibility. See [docs/photophysics_model.md](docs/photophysics_model.md) for the full derivation.
   * **Multi-Channel Support:** Simulate signals across multiple independent detector channels.
   * **Photodetector Physics:** Incorporates quantum shot noise, after-pulses, and thermionic (dark) noise.
   * **PMT Modeling:** Configurable gain, gain fluctuation, signal inversion, and charge spreading.
@@ -69,8 +71,14 @@ t, v0, v1, v2, v3, v4, v5, v6, v7, v8, y0, y1 = sp.scintiPulses(
     # Scintillation parameters
     nChannel=1,         # Number of detector channels
     tau1=4.6e-9,        # Prompt fluorescence decay time (s)
-    tau2=120e-9,        # Delayed fluorescence decay time (s)
-    p2=0.1,             # Fraction of delayed component
+    tau2=120e-9,        # Delayed-component characteristic time (s)
+    quenching=False,    # Enable Birks ionisation quenching of the prompt yield
+    kB=0.01,            # Birks constant (cm/MeV), used if quenching=True
+    TTA=True,           # Use the dE/dx-dependent TTA delayed-fluorescence model
+    Sd=0.005,           # TTA efficiency factor, used if TTA=True
+    kd=0.01,            # TTA saturation constant (cm/MeV), used if TTA=True
+    p2=0.1,             # Fraction of delayed component, used only if TTA=False
+    nE=100,             # Discretization points for the quenching/TTA integrals
     F=1,                # Fano factor of the scintillator
     L=5,                # Light yield (photons/keV)
     # PMT parameters
@@ -154,11 +162,19 @@ The function returns a 12-element tuple. This allows inspection of the signal at
 | Parameter | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `nChannel` | int | `1` | Number of detector channels. |
-| `tau1` | float | `250e-9` | Decay constant for the **prompt** component (s). |
-| `tau2` | float | `2e-6` | Decay constant for the **delayed** component (s). |
-| `p2` | float | `0` | Fraction of the delayed component ($0 \le p2 \le 1$). |
+| `tau1` | float | `4.6e-9` | Decay constant for the **prompt** component (s). |
+| `tau2` | float | `120e-9` | Characteristic time of the **delayed** component (s). Sets the decay time of a Voltz bimolecular kinetics $1/(1+t/\tau_2)^2$ if `TTA=True`, or a plain exponential if `TTA=False`. |
 | `F` | float | `1` | Fano factor of the scintillator. |
-| `L` | float | `1` | Scintillation light yield (photons/keV). |
+| `L` | float | `5` | Scintillation light yield (photons/keV). |
+| `quenching` | bool | `False` | Enable Birks ionisation quenching (Sn→S1 internal conversion) of the **prompt** yield only. See `kB`. |
+| `kB` | float | `0.01` | Birks constant (cm/MeV), used only if `quenching=True`. |
+| `TTA` | bool | `True` | Delayed-fluorescence model selector. If `True`, use the dE/dx-dependent triplet-triplet-annihilation model (`Sd`, `kd`); if `False`, fall back to the legacy fixed-fraction model (`p2`). |
+| `Sd` | float | `0.005` | TTA efficiency factor (delayed photons/keV in the low dE/dx limit), used only if `TTA=True`. |
+| `kd` | float | `0.01` | Saturation constant of the triplet interaction density (cm/MeV), used only if `TTA=True`. |
+| `p2` | float | `0.1` | Fraction of the prompt yield converted to delayed fluorescence ($0 \le p2 \le 1$), used only if `TTA=False`. |
+| `nE` | int | `100` | Number of points used to discretize the Birks (`quenching`) and TTA integrals. |
+
+See [docs/photophysics_model.md](docs/photophysics_model.md) for the full mathematical model, including the electron stopping-power model and the discrete-time hazard functions used for the stochastic photon simulation.
 
 ### 3\. Photodetector (PMT)
 
