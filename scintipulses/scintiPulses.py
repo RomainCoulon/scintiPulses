@@ -548,9 +548,11 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=1e9, nChannel=1,
     ###########################################
     v7=v6.copy()
     if ampli:
-        for i in range(nCR):
-            for z in range(nChannel):
-                v7[z] = G2*cr_filter(v6[z], tauCR, timeStep)
+        for z in range(nChannel):
+            v_stage = v6[z]
+            for i in range(nCR):
+                v_stage = cr_filter(v_stage, tauCR, timeStep)
+            v7[z] = G2*v_stage
        
     #################################
     ## SIMULATION OF THE DIGITIZER ##
@@ -559,7 +561,7 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=1e9, nChannel=1,
     if digitization:
         for z in range(nChannel):
             v8[z] = low_pass_filter(v7[z], timeStep, fc)
-            v8[z] = add_quantization_noise(v8[z], R, Vs)
+            v8[z] = add_quantization_noise(v8[z], R, Vs*2)
             v8[z] = saturate(v8[z], Vs*2)
     
     if nChannel==1:
