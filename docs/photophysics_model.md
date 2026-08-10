@@ -125,9 +125,14 @@ prompt yield — it never adds photons anywhere else.
 
 ## 4. Delayed fluorescence
 
-Two interchangeable models are available, selected by the `TTA` flag.
+The delayed channel is described by two *independent* choices: which model sets the mean
+**yield** (`TTA_yield`), and which model sets the **time shape** (`TTA_kinetics`) of the
+emission. Any combination of the two is valid — e.g. the fixed-fraction yield model paired with
+Voltz kinetics, if the saturating dE/dx-dependence of the yield is not identifiable from the
+available data (as for a beta spectrum, where the LET range is narrow) but the heavier-tailed
+Voltz time shape is still preferred over a plain exponential.
 
-### 4.1 TTA saturating model (`TTA=True`, default)
+### 4.1 Yield model A: TTA saturating model (`TTA_yield=True`, default)
 
 The delayed channel is fed by triplet states produced along the track. At high ionisation
 density the local triplet population saturates (triplets start interacting with each other
@@ -153,10 +158,12 @@ deposited energy, densely-ionising particles (e.g. alphas) produce proportionall
 light than sparsely-ionising ones (e.g. betas) at the same total energy — the qualitative
 behaviour used for pulse-shape discrimination in real detectors.
 
-### 4.2 Legacy simple model (`TTA=False`)
+### 4.2 Yield model B: legacy fixed-fraction model (`TTA_yield=False`)
 
-For backward compatibility, or when a minimal model is preferred, the delayed yield can instead
-be a fixed fraction of the prompt yield:
+For backward compatibility, when a minimal model is preferred, or when the saturating dE/dx
+dependence of §4.1 is not identifiable from the available calibration data (e.g. a beta spectrum,
+whose LET range is too narrow to separate `Sd` from `kd`), the delayed yield can instead be a
+fixed fraction of the prompt yield:
 
 $$
 N_{ph}^{\text{delayed}} = p_2 \cdot N_{ph}^{\text{prompt}}
@@ -164,16 +171,17 @@ $$
 
 ### 4.3 Kinetics: exponential vs. Voltz bimolecular
 
-The *time shape* of the delayed emission is tied to the same `TTA` flag:
+The *time shape* of the delayed emission is set independently by the `TTA_kinetics` flag, and can
+be paired with either yield model above:
 
-- **`TTA=False`**: plain exponential decay, time constant $\tau_2$ — the classic "double
+- **`TTA_kinetics=False`**: plain exponential decay, time constant $\tau_2$ — the classic "double
   exponential" pulse model (prompt + delayed, both exponential):
 
 $$
 f_{\text{delayed}}(t) = \frac{1}{\tau_2}\,e^{-t/\tau_2}
 $$
 
-- **`TTA=True`**: Voltz bimolecular (second-order, diffusion-free) kinetics. Under pure
+- **`TTA_kinetics=True`**: Voltz bimolecular (second-order, diffusion-free) kinetics. Under pure
   triplet-triplet annihilation, $d[T]/dt = -k_2[T]^2$, which integrates to
 
 $$
@@ -250,13 +258,15 @@ f(t')\,dt'$ of the corresponding continuous kinetics, $h(t,\Delta t) = 1 - S(t+\
 | Channel | Kinetics | Survival $S(t)$ | Hazard $h(t,\Delta t)$ |
 | :--- | :--- | :--- | :--- |
 | Prompt | exponential, $\tau_1$ | $e^{-t/\tau_1}$ | $1-e^{-\Delta t/\tau_1}$ (constant) |
-| Delayed, `TTA=False` | exponential, $\tau_2$ | $e^{-t/\tau_2}$ | $1-e^{-\Delta t/\tau_2}$ (constant) |
-| Delayed, `TTA=True` | Voltz, $\tau_2$ | $(1+t/\tau_2)^{-1}$ | $1-\dfrac{\tau_2+t}{\tau_2+t+\Delta t}$ (time-varying) |
+| Delayed, `TTA_kinetics=False` | exponential, $\tau_2$ | $e^{-t/\tau_2}$ | $1-e^{-\Delta t/\tau_2}$ (constant) |
+| Delayed, `TTA_kinetics=True` | Voltz, $\tau_2$ | $(1+t/\tau_2)^{-1}$ | $1-\dfrac{\tau_2+t}{\tau_2+t+\Delta t}$ (time-varying) |
 
-The prompt channel and the legacy exponential delayed channel are memoryless, so their hazard is
-a single constant computed once per call. The TTA delayed channel is **not** memoryless — its
-hazard grows smaller as $t$ increases (the surviving triplet population is thinning out and
-becoming less likely to react per unit time), so it is recomputed at every simulated time step.
+The prompt channel and the exponential delayed kinetics (`TTA_kinetics=False`) are memoryless, so
+their hazard is a single constant computed once per call. The Voltz delayed kinetics
+(`TTA_kinetics=True`) is **not** memoryless — its hazard grows smaller as $t$ increases (the
+surviving triplet population is thinning out and becoming less likely to react per unit time), so
+it is recomputed at every simulated time step. This choice of kinetics is independent of which
+yield model (§4.1 vs §4.2) supplied `Nph_delayed`.
 
 This binomial-thinning construction reproduces the continuous kinetics *exactly* in expectation
 over many repetitions — it is the discrete-time equivalent of sampling from the corresponding
@@ -299,7 +309,7 @@ flowchart LR
 | $\mu_{\text{delayed}}$ | `tta_delayed_yield` | Mean number of delayed (TTA) photons | photons |
 | $\tau_1$ | `tau1` | Prompt decay time | s |
 | $\tau_2$ | `tau2` | Delayed characteristic time | s |
-| $p_2$ | `p2` | Legacy delayed fraction (`TTA=False` only) | — |
+| $p_2$ | `p2` | Legacy delayed fraction (`TTA_yield=False` only) | — |
 | $F$ | `F` | Fano factor | — |
 
 -----

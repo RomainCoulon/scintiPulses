@@ -29,7 +29,7 @@ This tool is ideal for post-processing data from Monte Carlo simulation framewor
 
   * **Physics-Based Modeling:** Simulates time-dependent fluorescence including prompt and delayed components, with Fano factor support.
   * **Ionisation Quenching:** Optional Birks-law quenching of the prompt yield, driven by an electron stopping-power model (Bethe + Joy-Luo).
-  * **Delayed (TTA) Fluorescence:** dE/dx-dependent triplet-triplet annihilation model with non-exponential (Voltz bimolecular) kinetics, or a legacy fixed-fraction/exponential model for backward compatibility. See [docs/photophysics_model.md](docs/photophysics_model.md) for the full derivation.
+  * **Delayed (TTA) Fluorescence:** independently selectable yield model (dE/dx-dependent triplet-triplet annihilation, or a legacy fixed-fraction model) and kinetics model (non-exponential Voltz bimolecular, or plain exponential), so any combination can be paired. See [docs/photophysics_model.md](docs/photophysics_model.md) for the full derivation.
   * **Multi-Channel Support:** Simulate signals across multiple independent detector channels.
   * **Photodetector Physics:** Incorporates quantum shot noise, after-pulses, and thermionic (dark) noise.
   * **PMT Modeling:** Configurable gain, gain fluctuation, signal inversion, and charge spreading.
@@ -74,10 +74,11 @@ t, v0, v1, v2, v3, v4, v5, v6, v7, v8, y0, y1 = sp.scintiPulses(
     tau2=120e-9,        # Delayed-component characteristic time (s)
     quenching=False,    # Enable Birks ionisation quenching of the prompt yield
     kB=0.01,            # Birks constant (cm/MeV), used if quenching=True
-    TTA=True,           # Use the dE/dx-dependent TTA delayed-fluorescence model
-    Sd=0.005,           # TTA efficiency factor, used if TTA=True
-    kd=0.01,            # TTA saturation constant (cm/MeV), used if TTA=True
-    p2=0.1,             # Fraction of delayed component, used only if TTA=False
+    TTA_yield=True,     # Use the dE/dx-dependent TTA delayed-yield model
+    TTA_kinetics=True,  # Use Voltz bimolecular kinetics for the delayed-component time shape
+    Sd=0.005,           # TTA efficiency factor, used if TTA_yield=True
+    kd=0.01,            # TTA saturation constant (cm/MeV), used if TTA_yield=True
+    p2=0.1,             # Fraction of delayed component, used only if TTA_yield=False
     nE=100,             # Discretization points for the quenching/TTA integrals
     F=1,                # Fano factor of the scintillator
     L=5,                # Light yield (photons/keV)
@@ -163,15 +164,16 @@ The function returns a 12-element tuple. This allows inspection of the signal at
 | :--- | :--- | :--- | :--- |
 | `nChannel` | int | `1` | Number of detector channels. |
 | `tau1` | float | `4.6e-9` | Decay constant for the **prompt** component (s). |
-| `tau2` | float | `120e-9` | Characteristic time of the **delayed** component (s). Sets the decay time of a Voltz bimolecular kinetics $1/(1+t/\tau_2)^2$ if `TTA=True`, or a plain exponential if `TTA=False`. |
+| `tau2` | float | `120e-9` | Characteristic time of the **delayed** component (s). Sets the decay time of a Voltz bimolecular kinetics $1/(1+t/\tau_2)^2$ if `TTA_kinetics=True`, or a plain exponential if `TTA_kinetics=False`. |
 | `F` | float | `1` | Fano factor of the scintillator. |
 | `L` | float | `5` | Scintillation light yield (photons/keV). |
 | `quenching` | bool | `False` | Enable Birks ionisation quenching (Sn→S1 internal conversion) of the **prompt** yield only. See `kB`. |
 | `kB` | float | `0.01` | Birks constant (cm/MeV), used only if `quenching=True`. |
-| `TTA` | bool | `True` | Delayed-fluorescence model selector. If `True`, use the dE/dx-dependent triplet-triplet-annihilation model (`Sd`, `kd`); if `False`, fall back to the legacy fixed-fraction model (`p2`). |
-| `Sd` | float | `0.005` | TTA efficiency factor (delayed photons/keV in the low dE/dx limit), used only if `TTA=True`. |
-| `kd` | float | `0.01` | Saturation constant of the triplet interaction density (cm/MeV), used only if `TTA=True`. |
-| `p2` | float | `0.1` | Fraction of the prompt yield converted to delayed fluorescence ($0 \le p2 \le 1$), used only if `TTA=False`. |
+| `TTA_yield` | bool | `True` | Delayed-**yield** model selector. If `True`, use the dE/dx-dependent triplet-triplet-annihilation model (`Sd`, `kd`); if `False`, fall back to the legacy fixed-fraction model (`p2`). Independent of `TTA_kinetics`. |
+| `TTA_kinetics` | bool | `True` | Delayed-**time-shape** model selector. If `True`, use Voltz bimolecular kinetics $1/(1+t/\tau_2)^2$; if `False`, use a plain exponential (decay time `tau2`). Independent of `TTA_yield`, so any combination is valid (e.g. fixed-fraction yield with Voltz kinetics). |
+| `Sd` | float | `0.005` | TTA efficiency factor (delayed photons/keV in the low dE/dx limit), used only if `TTA_yield=True`. |
+| `kd` | float | `0.01` | Saturation constant of the triplet interaction density (cm/MeV), used only if `TTA_yield=True`. |
+| `p2` | float | `0.1` | Fraction of the prompt yield converted to delayed fluorescence ($0 \le p2 \le 1$), used only if `TTA_yield=False`. |
 | `nE` | int | `100` | Number of points used to discretize the Birks (`quenching`) and TTA integrals. |
 
 See [docs/photophysics_model.md](docs/photophysics_model.md) for the full mathematical model, including the electron stopping-power model and the discrete-time hazard functions used for the stochastic photon simulation.

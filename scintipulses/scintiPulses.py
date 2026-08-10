@@ -216,7 +216,7 @@ def cr_filter(v, tau, dt):
 def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=1e9, nChannel=1,
                                  tau1 = 4.6e-9, tau2 = 120e-9, p2 = 0.1,
                                  quenching = False, kB = 0.01, nE = 100,
-                                 TTA = True, Sd = 0.005, kd = 0.01,
+                                 TTA_yield = True, TTA_kinetics = True, Sd = 0.005, kd = 0.01,
                                  F=1, lambda_ = 1e4, L = 5, C = 5e-12, G0=20e6, sigma_G = 0, I=-1,
                                  tauS = 2.23e-9, rendQ = 0.25,
                                  afterPulses = False, pA = 1e-3, tauA = 5e-6, sigmaA = 1e-6,
@@ -241,14 +241,14 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=1e9, nChannel=1,
     tau1 : float, optional
         decay period of the fluorescence in s. The default is 4.6 ns.
     tau2 : float, optional
-        characteristic time of the delayed fluorescence through TTA (T1+T1->S1) transition in s. If TTA=True, the delayed
-        component does not decay exponentially: it follows the Voltz bimolecular kinetics 1/(1+t/tau2)^2, the exact shape
-        of a triplet population undergoing pure second-order (diffusion-free) annihilation. If TTA=False, tau2 instead
-        sets the decay time of a plain exponential delayed component (the original "double exponential" model). The
-        default is 120 ns.
+        characteristic time of the delayed fluorescence through TTA (T1+T1->S1) transition in s. If TTA_kinetics=True, the
+        delayed component does not decay exponentially: it follows the Voltz bimolecular kinetics 1/(1+t/tau2)^2, the exact
+        shape of a triplet population undergoing pure second-order (diffusion-free) annihilation. If TTA_kinetics=False,
+        tau2 instead sets the decay time of a plain exponential delayed component (the original "double exponential"
+        model). The default is 120 ns.
     p2 : float, optional
-        only used when TTA=False: fixed fraction of the total (prompt) light yield converted into delayed fluorescence,
-        mean_n_s_delayed = p2*Nph (the original, simple double-exponential model). The default is 0.1.
+        only used when TTA_yield=False: fixed fraction of the total (prompt) light yield converted into delayed
+        fluorescence, mean_n_s_delayed = p2*Nph (the original, simple fixed-fraction model). The default is 0.1.
     quenching : boolean, optional
         reduce the prompt fluorescence yield to the Birks-quenched energy Eq(Y,kB), i.e. ionisation quenching of the
         Sn->S1 internal-conversion pathway feeding the prompt singlet population. This is a distinct mechanism from the
@@ -258,16 +258,21 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=1e9, nChannel=1,
     nE : integer, optional
         number of points used to discretize the Birks quenching integral Eq(Y,kB) and the TTA integral mu_delayed(Y,Sd,kd)
         below. The default is 100.
-    TTA : boolean, optional
-        if True, the delayed component follows the Birks-like saturating TTA model
-        mu_delayed(Y) = integral_0^Y [Sd*dE/dx]/[1+kd*dE/dx] dE (mean number of delayed photons growing with the local
-        stopping power dE/dx, see Sd and kd) with Voltz bimolecular kinetics (see tau2). If False, falls back to the
-        original simple model: a fixed fraction p2 of the prompt yield with plain exponential kinetics (decay time tau2).
-        The default is True.
+    TTA_yield : boolean, optional
+        selects the model used for the mean number of delayed photons per event. If True, the delayed yield follows the
+        Birks-like saturating TTA model mu_delayed(Y) = integral_0^Y [Sd*dE/dx]/[1+kd*dE/dx] dE (mean number of delayed
+        photons growing with the local stopping power dE/dx, see Sd and kd). If False, falls back to the original simple
+        model: a fixed fraction p2 of the prompt yield. This is independent of TTA_kinetics, which selects the *time
+        shape* of the delayed emission, so any combination of the two is valid (e.g. the fixed-fraction yield paired
+        with Voltz kinetics). The default is True.
+    TTA_kinetics : boolean, optional
+        selects the time shape of the delayed emission. If True, the delayed component follows the Voltz bimolecular
+        kinetics 1/(1+t/tau2)^2 (see tau2). If False, the delayed component decays as a plain exponential with decay
+        time tau2. Independent of TTA_yield (see above). The default is True.
     Sd : float, optional
-        only used when TTA=True: TTA efficiency factor (delayed photons per keV in the low dE/dx limit). The default is 0.005.
+        only used when TTA_yield=True: TTA efficiency factor (delayed photons per keV in the low dE/dx limit). The default is 0.005.
     kd : float, optional
-        only used when TTA=True: saturation constant of the triplet interaction density, in cm/MeV. The default is 0.01 cm/MeV.
+        only used when TTA_yield=True: saturation constant of the triplet interaction density, in cm/MeV. The default is 0.01 cm/MeV.
     F : float, optional
         Fano factor. The default is 1.
     lambda_ : float, optional
@@ -391,7 +396,7 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=1e9, nChannel=1,
     else:
         Yq = Y
     Nph = Yq*L                      # mean nb of prompt photons / decay
-    if TTA:
+    if TTA_yield:
         Nph_delayed = np.array([tta_delayed_yield(Yi, Sd, kd, nE) for Yi in Y])  # mean nb of delayed (TTA) photons / decay, dE/dx dependent
     else:
         Nph_delayed = p2*Nph            # original simple model: fixed fraction of the prompt yield
@@ -401,7 +406,7 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=1e9, nChannel=1,
     ## SIMULATION OF THE DETERMINISTIC ILLUMINATION FUNCTION ##
     ###########################################################
     for i, ti in enumerate(arrival_times):
-        if TTA:
+        if TTA_kinetics:
             delayed_shape = (Nph_delayed[i]/tau2) / (1+t/tau2)**2
         else:
             delayed_shape = (Nph_delayed[i]/tau2) * np.exp(-t/tau2)
@@ -419,9 +424,9 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=1e9, nChannel=1,
     ## SIMULATION OF THE QUANTUM ILLUMINATION FUNCTION ##
     #####################################################
     n_tp = 1-np.exp(-1/(fS*tau1)) # prompt transition probability (memoryless, exponential kinetics)
-    if not TTA:
+    if not TTA_kinetics:
         n_td_exp = 1-np.exp(-1/(fS*tau2)) # delayed transition probability (memoryless, exponential kinetics)
-    # if TTA=True the delayed channel is not memoryless: its transition
+    # if TTA_kinetics=True the delayed channel is not memoryless: its transition
     # probability n_td(t) is derived below at each step from the survival
     # function of the 1/(1+t/tau2)^2 bimolecular kinetics
 
@@ -453,7 +458,7 @@ def scintiPulses(Y, arrival_times=False, tN=1e-4, fS=1e9, nChannel=1,
         
         l = 0; n_e_delayed=[]
         while n_s_delayed>0 or ti+l*timeStep<t[-1]:
-            if TTA:
+            if TTA_kinetics:
                 t_l = l*timeStep
                 n_td = 1 - (tau2+t_l)/(tau2+t_l+timeStep)              # time-varying hazard of the 1/(1+t/tau2)^2 TTA kinetics
             else:

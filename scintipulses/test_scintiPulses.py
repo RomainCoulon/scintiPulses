@@ -18,14 +18,15 @@ t, v0, v1, v2, v3, v4, v5, v6, v7, v8, y0, y1 = sp.scintiPulses(
     # scintillation parameters
     nChannel=1, # number of channels
     tau1 = 4.6e-9, # prompt fluorescence decay time in seconds
-    tau2 = 120e-9, # characteristic time of the delayed component (Voltz kinetics if TTA=True, else exponential)
-    p2 = 0.1, # only used if TTA=False: fixed fraction of the prompt yield converted to delayed fluorescence
+    tau2 = 120e-9, # characteristic time of the delayed component (Voltz kinetics if TTA_kinetics=True, else exponential)
+    p2 = 0.1, # only used if TTA_yield=False: fixed fraction of the prompt yield converted to delayed fluorescence
     quenching = True, # if True, Birks' ionisation quenching (Sn->S1) reduces the prompt fluorescence yield
     kB = 0.01, # Birks constant in cm/MeV (prompt channel only)
     nE = 100, # number of points used to discretize the Birks and TTA integrals
-    TTA = True, # if True, the delayed component follows the dE/dx-dependent TTA model; if False, the legacy p2 model
-    Sd = 0.005, # TTA efficiency factor (delayed photons per keV in the low dE/dx limit), used if TTA=True
-    kd = 0.01, # saturation constant of the triplet interaction density in cm/MeV, used if TTA=True
+    TTA_yield = True, # if True, the delayed yield follows the dE/dx-dependent TTA model; if False, the legacy p2 model
+    TTA_kinetics = True, # if True, the delayed component follows Voltz bimolecular kinetics; if False, plain exponential decay
+    Sd = 0.005, # TTA efficiency factor (delayed photons per keV in the low dE/dx limit), used if TTA_yield=True
+    kd = 0.01, # saturation constant of the triplet interaction density in cm/MeV, used if TTA_yield=True
     F = 1, # Fano factor of the scintillator
     L = 5, # light yield of the scintillator in keV^-1
     # PMT parameters
